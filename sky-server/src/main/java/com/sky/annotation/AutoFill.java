@@ -1,7 +1,6 @@
 package com.sky.annotation;
 
 import com.sky.enumeration.OperationType;
-import net.bytebuddy.implementation.bind.annotation.RuntimeType;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
