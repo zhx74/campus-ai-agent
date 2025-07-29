@@ -8,6 +8,7 @@ import com.sky.dto.DishDTO;
 import com.sky.dto.DishPageQueryDTO;
 import com.sky.entity.Dish;
 import com.sky.entity.DishFlavor;
+import com.sky.entity.Setmeal;
 import com.sky.exception.DeletionNotAllowedException;
 import com.sky.mapper.DishFlavorMapper;
 import com.sky.mapper.DishMapper;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -51,7 +53,7 @@ public class DishServiceImpl implements DishService {
 
         // 向口味表插入一条或多条数据
         List<DishFlavor> flavors = dishDTO.getFlavors();
-        if(flavors != null && !flavors.isEmpty()) {
+        if (flavors != null && !flavors.isEmpty()) {
             flavors.forEach(dishFlavor -> {
                 dishFlavor.setDishId(dishId);
             });
@@ -78,7 +80,7 @@ public class DishServiceImpl implements DishService {
         // 判断当前菜品是否能够删除---是否存在起售中
         for (Long id : ids) {
             Dish dish = dishMapper.getById(id);
-            if(dish.getStatus() == StatusConstant.ENABLE) {
+            if (dish.getStatus() == StatusConstant.ENABLE) {
                 // 当前菜品处于起售中，不能删除
                 throw new DeletionNotAllowedException(MessageConstant.DISH_ON_SALE);
             }
@@ -86,7 +88,7 @@ public class DishServiceImpl implements DishService {
 
         // 判断当前菜品是否能够删除---是否被套餐关联
         List<Long> setmealIds = setmealDishMapper.getSetmealIdsByDishIds(ids);
-        if(setmealIds != null && !setmealIds.isEmpty()) {
+        if (setmealIds != null && !setmealIds.isEmpty()) {
             // 当前菜品被套餐关联，不能删除
             throw new DeletionNotAllowedException(MessageConstant.DISH_BE_RELATED_BY_SETMEAL);
         }
@@ -138,12 +140,50 @@ public class DishServiceImpl implements DishService {
 
         // 重新插入口味数据
         List<DishFlavor> flavors = dishDTO.getFlavors();
-        if(flavors != null && !flavors.isEmpty()) {
+        if (flavors != null && !flavors.isEmpty()) {
             flavors.forEach(dishFlavor -> {
                 dishFlavor.setDishId(dishDTO.getId());
             });
             // 向口味表插入n条数据
             dishFlavorMapper.insertBatch(flavors);
         }
+    }
+
+    // 菜品起售停售
+    @Override
+    public void startOrStop(Integer status, Long id) {
+        Dish dish = Dish.builder()
+                .id(id)
+                .status(status)
+                .build();
+        dishMapper.update(dish);
+
+        if(status == StatusConstant.DISABLE) {
+            List<Long> dishIds = new ArrayList<>();
+            dishIds.add(id);
+            // 如果停售状态
+            List<Long> setmealIds = setmealDishMapper.getSetmealIdsByDishIds(dishIds);
+
+            if(setmealIds != null && !setmealIds.isEmpty()) {
+                for (Long setmealId : setmealIds) {
+                    Setmeal setmeal = Setmeal.builder()
+                            .id(setmealId)
+                            .status(StatusConstant.DISABLE)
+                            .build();
+                    setmealDishMapper.update(setmeal);
+                }
+            }
+        }
+    }
+
+    // 根据分类id来查询菜品
+    @Override
+    public List<Dish> list(Long categoryId) {
+        Dish dish = Dish.builder()
+                .categoryId(categoryId)
+                .status(StatusConstant.ENABLE)
+                .build();
+
+        return dishMapper.list(dish);
     }
 }
