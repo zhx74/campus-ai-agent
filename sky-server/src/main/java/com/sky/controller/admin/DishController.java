@@ -12,9 +12,11 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 // 菜品管理
 @RestController
@@ -26,6 +28,9 @@ public class DishController {
     @Autowired
     private DishService dishService;
 
+    @Autowired
+    private RedisTemplate redisTemplate;
+
     // 新增菜品
     @PostMapping
     @ApiOperation("新增菜品")
@@ -33,6 +38,9 @@ public class DishController {
         log.info("新增菜品,{},", dishDTO);
         dishService.savaWithFlavor(dishDTO);
 
+        // 清理缓存数据
+        String key = "dish_" + dishDTO.getCategoryId();
+        cleanCache(key);
         return Result.success();
     }
 
@@ -55,6 +63,9 @@ public class DishController {
         log.info("菜品批量删除：{}", ids);
         dishService.deleteBatch(ids);
 
+        // 将所有菜品缓存数据清理，所有以dish_开头的key
+        cleanCache("dish_*");
+
         return Result.success();
     }
 
@@ -75,6 +86,9 @@ public class DishController {
         log.info("修改菜品");
         dishService.updateWithFlavor(dishDTO);
 
+        // 将所有菜品缓存数据清理，所有以dish_开头的key
+        cleanCache("dish_*");
+
         return Result.success();
     }
 
@@ -83,6 +97,9 @@ public class DishController {
     @ApiOperation("菜品起售停售")
     public Result<String> startOrStop(@PathVariable Integer status, Long id) {
         dishService.startOrStop(status, id);
+
+        // 将所有菜品缓存数据清理，所有以dish_开头的key
+        cleanCache("dish_*");
 
         return Result.success();
     }
@@ -94,6 +111,12 @@ public class DishController {
         List<Dish> list = dishService.list(categoryId);
 
         return Result.success(list);
+    }
+
+    // 统一清理所有缓存数据的方法
+    private void cleanCache(String pattern) {
+        Set keys = redisTemplate.keys(pattern);
+        redisTemplate.delete(keys);
     }
 
 }
