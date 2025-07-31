@@ -1,5 +1,6 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
@@ -152,6 +153,18 @@ public class OrderServiceImpl implements OrderService {
         log.info("调用updateStatus, 用于替换支付后更新数据库状态的问题");
         orderMapper.updateStatus(OrderStatus, OrderPaidStatus, check_out_time, orderNumber);
 
+        // 通过websocket向客户端浏览器推送消息
+        // type orderId content
+        Map map = new HashMap();
+        map.put("type", 1); // 1表示来单提醒 2表示客户催单
+        // 根据订单号查询订单获取订单ID
+        Orders orderDB = orderMapper.getByNumber(ordersPaymentDTO.getOrderNumber());
+        map.put("orderId", orderDB.getId());
+        map.put("content", "订单号：" + ordersPaymentDTO.getOrderNumber());
+
+        String json = JSONObject.toJSONString(map);
+        websocketServer.sendToAllClient(json);
+
         return vo;
     }
 
@@ -175,7 +188,7 @@ public class OrderServiceImpl implements OrderService {
 
         orderMapper.update(orders);
 
-        // 通过websocket向客户端浏览器推送消息
+        /*// 通过websocket向客户端浏览器推送消息
         // type orderId content
         Map map = new HashMap();
         map.put("type", 1); // 1表示来单提醒 2表示客户催单
@@ -183,7 +196,7 @@ public class OrderServiceImpl implements OrderService {
         map.put("content", "订单号：" + outTradeNo);
 
         String json = JSONObject.toJSONString(map);
-        websocketServer.sendToAllClient(json);
+        websocketServer.sendToAllClient(json);*/
 
     }
 
@@ -517,5 +530,26 @@ public class OrderServiceImpl implements OrderService {
         orders.setDeliveryTime(LocalDateTime.now());
 
         orderMapper.update(orders);
+    }
+
+    // 客户催单
+    @Override
+    public void reminder(Long id) {
+        // 根据id查询订单
+        Orders ordersDB = orderMapper.getById(id);
+
+        // 检验订单是否存在
+        if(ordersDB == null) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+
+        Map map = new HashMap();
+        map.put("type", 2); // 1表示来单提醒，2表示客户催单
+        map.put("orders", id);
+        map.put("content", "订单号：" + ordersDB.getNumber());
+
+        // 通过websocket向客户端浏览器推送消息
+        String json = JSON.toJSONString(map);
+        websocketServer.sendToAllClient(json);
     }
 }
