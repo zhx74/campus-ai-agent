@@ -68,7 +68,7 @@ public class DishServiceImpl implements DishService {
 
         PageHelper.startPage(dishPageQueryDTO.getPage(), dishPageQueryDTO.getPageSize());
 
-        Page<DishVO> page = dishMapper.pageQuery(dishPageQueryDTO);
+        Page<DishVO> page = dishMapper.pageQuery(dishPageQueryDTO);//固定的分页查询用page<T>来接受mapper返回值
 
         return new PageResult(page.getTotal(), page.getResult());
     }
@@ -99,6 +99,7 @@ public class DishServiceImpl implements DishService {
             // 删除菜品关联口味
             dishFlavorMapper.deleteByDishId(id);
         }*/
+        //因为两个方法调用的对象不同了 一个id 一个ids所以不删除之前的sql语句也不影响
 
         // 删除菜品表中的菜品数据
         dishMapper.deleteByIds(ids);

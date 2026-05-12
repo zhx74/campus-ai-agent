@@ -27,7 +27,6 @@ public class CommonController {
     @ApiOperation("文件上传")
     public Result<String> upload(MultipartFile file) throws IOException {
         log.info("文件上传,{}", file);
-        String filePath = null;
 
         try {
             // 原始文件名
@@ -37,7 +36,7 @@ public class CommonController {
             String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             String objectName = UUID.randomUUID().toString() + extension;
 
-            filePath = aliOssUtil.upload(file.getBytes(), objectName);
+            String filePath = aliOssUtil.upload(file.getBytes(), objectName);
             return Result.success(filePath);
 
         } catch (IOException e) {

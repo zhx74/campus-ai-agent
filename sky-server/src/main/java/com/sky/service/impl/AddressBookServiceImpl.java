@@ -65,7 +65,7 @@ public class AddressBookServiceImpl implements AddressBookService {
     @Transactional
     public void setDefault(AddressBook addressBook) {
         //1、将当前用户的所有地址修改为非默认地址 update address_book set is_default = ? where user_id = ?
-        addressBook.setIsDefault(0);
+        addressBook.setIsDefault(0);  // ← 关键：设置成 0
         addressBook.setUserId(BaseContext.getCurrentId());
         addressBookMapper.updateIsDefaultByUserId(addressBook);
 

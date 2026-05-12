@@ -110,8 +110,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     // 启用禁用员工账号
     @Override
     public void startOrStop(Integer status, Long id) {
-        // update
-
+        //因为只设置两个属性所以用build方法  属性少时用 Builder（手动精确指定）
         Employee employee = Employee.builder()
                 .status(status)
                 .id(id)
@@ -125,6 +124,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     public Employee getById(Integer id) {
         Employee employee = employeeMapper.getById(id);
         employee.setPassword("******");
+        // 密码设置为******
         return employee;
     }
 
@@ -132,10 +132,11 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public void update(EmployeeDTO employeeDTO) {
         Employee employee = new Employee();
+        //属性多时用 copyProperties（自动批量复制）
         BeanUtils.copyProperties(employeeDTO, employee);
 
-        //employee.setUpdateTime(LocalDateTime.now());
-        //employee.setUpdateUser(BaseContext.getCurrentId());
+//    employee.setUpdateTime(LocalDateTime.now());
+//     employee.setUpdateUser(BaseContext.getCurrentId());
 
         employeeMapper.update(employee);
     }

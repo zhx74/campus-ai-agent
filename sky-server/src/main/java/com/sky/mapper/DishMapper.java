@@ -36,7 +36,8 @@ public interface DishMapper {
     Dish getById(Long id);
 
     // 根据主键删除菜品数据
-    @Delete("delete from dish where id = #{id}")
+    @Delete("delete from dish where id = #{id}")//但是用这种方法如果ids有很多那执行sql语句就会执行很多次  所以要吧sql语句放在mapper.xml中改为动态加个循环就好了 只执行一次
+    //但是不擅除也不影响的因为对象不一样了一个是id  一个是ids了
     void deleteById(Long id);
 
     // 根据菜品ID批量删除菜品
