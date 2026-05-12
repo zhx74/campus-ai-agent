@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile default="true" name="Default" enabled="true" />
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="campus-server" />
+        <module name="campus-pojo" />
+        <module name="campus-common" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel target="25">
+      <module name="sky-common" target="1.8" />
+      <module name="sky-pojo" target="1.8" />
+      <module name="sky-server" target="1.8" />
+    </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="campus-canteen-management" options="-parameters" />
+      <module name="campus-common" options="-parameters" />
+      <module name="campus-pojo" options="-parameters" />
+      <module name="campus-server" options="-parameters" />
+      <module name="sky-common" options="-parameters" />
+      <module name="sky-pojo" options="-parameters" />
+      <module name="sky-server" options="-parameters" />
+    </option>
+  </component>
+</project>
