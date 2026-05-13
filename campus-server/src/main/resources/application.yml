@@ -24,6 +24,10 @@ spring:
     password: ${campus.canteen.redis.password}
     database: ${campus.canteen.redis.database}
 
+  # Redisson配置（使用独立配置文件）
+  redisson:
+    file: classpath:redisson-config.yaml
+
   rabbitmq:
     host: ${campus.canteen.rabbitmq.host:localhost}
     port: ${campus.canteen.rabbitmq.port:5672}
