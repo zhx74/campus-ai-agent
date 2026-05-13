@@ -6,6 +6,12 @@ spring:
     active: dev
   main:
     allow-circular-references: true
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  cloud:
+    compatibility-verifier:
+      enabled: false
   datasource:
     druid:
       driver-class-name: ${campus.canteen.datasource.driver-class-name}
@@ -17,6 +23,17 @@ spring:
     port: ${campus.canteen.redis.port}
     password: ${campus.canteen.redis.password}
     database: ${campus.canteen.redis.database}
+
+  rabbitmq:
+    host: ${campus.canteen.rabbitmq.host:localhost}
+    port: ${campus.canteen.rabbitmq.port:5672}
+    username: ${campus.canteen.rabbitmq.username:guest}
+    password: ${campus.canteen.rabbitmq.password:guest}
+    virtual-host: /
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=30m
 
 mybatis:
   #mapper配置文件
@@ -58,3 +75,26 @@ campus:
     wechat:
       appid: ${campus.canteen.wechat.appid}
       secret: ${campus.canteen.wechat.secret}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+resilience4j:
+  ratelimiter:
+    instances:
+      orderSubmit:
+        limitForPeriod: 500
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+  circuitbreaker:
+    instances:
+      paymentService:
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s

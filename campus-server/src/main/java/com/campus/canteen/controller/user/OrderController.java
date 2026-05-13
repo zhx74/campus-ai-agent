@@ -8,6 +8,7 @@ import com.campus.canteen.service.OrderService;
 import com.campus.canteen.vo.OrderPaymentVO;
 import com.campus.canteen.vo.OrderSubmitVO;
 import com.campus.canteen.vo.OrderVO;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
@@ -26,11 +27,16 @@ public class OrderController {
     // 用户下单
     @PostMapping("/submit")
     @ApiOperation("用户下单")
+    @RateLimiter(name = "orderSubmit", fallbackMethod = "fallback")
     public Result<OrderSubmitVO> submit(@RequestBody OrdersSubmitDTO ordersSubmitDTO) {
         log.info("用户下单，参数为：{}", ordersSubmitDTO);
         OrderSubmitVO orderSubmitVO = orderService.submitOrder(ordersSubmitDTO);
 
         return Result.success(orderSubmitVO);
+    }
+
+    public Result<OrderSubmitVO> fallback(OrdersSubmitDTO ordersSubmitDTO, Throwable t) {
+        return Result.error("请求过于频繁，请稍后重试");
     }
 
     /**

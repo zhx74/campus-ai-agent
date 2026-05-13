@@ -1,6 +1,5 @@
 package com.campus.canteen.service.impl;
 
-import com.google.j2objc.annotations.AutoreleasePool;
 import com.campus.canteen.context.BaseContext;
 import com.campus.canteen.dto.ShoppingCartDTO;
 import com.campus.canteen.entity.Dish;

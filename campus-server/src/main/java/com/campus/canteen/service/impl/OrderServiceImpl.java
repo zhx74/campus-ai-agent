@@ -6,6 +6,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.xiaoymin.knife4j.core.util.CollectionUtils;
 import com.campus.canteen.constant.MessageConstant;
+import com.campus.canteen.config.RabbitMQConfig;
 import com.campus.canteen.context.BaseContext;
 import com.campus.canteen.dto.*;
 import com.campus.canteen.entity.*;
@@ -22,6 +23,7 @@ import com.campus.canteen.vo.OrderSubmitVO;
 import com.campus.canteen.vo.OrderVO;
 import com.campus.canteen.websocket.WebSocketServer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -52,6 +54,8 @@ public class OrderServiceImpl implements OrderService {
     private UserMapper userMapper;
     @Autowired
     private WebSocketServer websocketServer;
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     // 用户下单
     @Transactional
@@ -73,38 +77,54 @@ public class OrderServiceImpl implements OrderService {
             throw new ShoppingCartBusinessException(MessageConstant.SHOPPING_CART_IS_NULL);
         }
 
-        // 向订单表插入1条数据
-        Orders orders = new Orders();
-        BeanUtils.copyProperties(ordersSubmitDTO, orders);
-        orders.setOrderTime(LocalDateTime.now());
-        orders.setPayStatus(Orders.UN_PAID);
-        orders.setStatus(Orders.PENDING_PAYMENT);
-        orders.setNumber(String.valueOf(System.currentTimeMillis()));
-        orders.setPhone(addressBook.getPhone());
-        orders.setConsignee(addressBook.getConsignee());
-        orders.setUserId(userId);
+        // 创建订单实体
+        Orders order = new Orders();
+        BeanUtils.copyProperties(ordersSubmitDTO, order);
+        order.setPhone(addressBook.getPhone());
+        order.setAddress(addressBook.getDetail());
+        order.setConsignee(addressBook.getConsignee());
+        order.setStatus(Orders.PENDING_PAYMENT); // 待支付状态
+        order.setPayStatus(Orders.UN_PAID);
+        order.setOrderTime(LocalDateTime.now());
+        order.setNumber(String.valueOf(System.currentTimeMillis()));
+        order.setUserId(userId);
 
-        orderMapper.insert(orders);
+        // 插入订单
+        orderMapper.insert(order);
 
+        // 插入订单明细
         List<OrderDetail> orderDetailList = new ArrayList<>();
-        // 向订单明细表插入n条数据
         for (ShoppingCart cart : shoppingCartList) {
             OrderDetail orderDetail = new OrderDetail();
-            BeanUtils.copyProperties(cart, orderDetail);
-            orderDetail.setOrderId(orders.getId());
+            BeanUtils.copyProperties(cart, orderDetail, "id");
+            orderDetail.setOrderId(order.getId());
             orderDetailList.add(orderDetail);
         }
         orderDetailMapper.insertBatch(orderDetailList);
 
-        // 下单成功，清空当前用户的购物车数据
-        shoppingCartMapper.deleteById(userId);
+        // 清空购物车
+        shoppingCartMapper.deleteByUserId(userId);
 
-        // 封装VO返回结果
+        // 发送延时消息（15分钟后检查是否支付）
+        long delayMillis = 15 * 60 * 1000; // 15分钟
+        rabbitTemplate.convertAndSend(
+            RabbitMQConfig.ORDER_DELAYED_EXCHANGE,
+            RabbitMQConfig.ORDER_DELAY_ROUTING_KEY,
+            order.getId(),
+            message -> {
+                message.getMessageProperties().setDelay((int) delayMillis);
+                return message;
+            }
+        );
+
+        log.info("订单创建成功，订单ID: {}, 已发送延时消息", order.getId());
+
+        // 构建返回结果
         OrderSubmitVO orderSubmitVO = OrderSubmitVO.builder()
-                .id(orders.getId())
-                .orderTime(orders.getOrderTime())
-                .orderNumber(orders.getNumber())
-                .orderAmount(orders.getAmount())
+                .id(order.getId())
+                .orderTime(order.getOrderTime())
+                .orderNumber(order.getNumber())
+                .orderAmount(order.getAmount())
                 .build();
 
         return orderSubmitVO;
@@ -147,16 +167,9 @@ public class OrderServiceImpl implements OrderService {
      * 支付成功，修改订单状态
      */
     public void paySuccess(String outTradeNo) {
-        Orders ordersDB = orderMapper.getByNumber(outTradeNo);
-
-        Orders orders = Orders.builder()
-                .id(ordersDB.getId())
-                .status(Orders.TO_BE_CONFIRMED)
-                .payStatus(Orders.PAID)
-                .checkoutTime(LocalDateTime.now())
-                .build();
-
-        orderMapper.update(orders);
+        // 发布事件
+        Map<String, Object> event = Map.of("outTradeNo", outTradeNo, "event", "payment.success");
+        rabbitTemplate.convertAndSend("order.exchange", "order.payment", event);
     }
 
     /**

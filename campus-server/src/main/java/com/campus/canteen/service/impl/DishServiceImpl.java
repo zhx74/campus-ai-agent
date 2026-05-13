@@ -19,6 +19,7 @@ import com.campus.canteen.vo.DishVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -178,6 +179,7 @@ public class DishServiceImpl implements DishService {
     }
 
     // 根据分类id来查询菜�?
+    @Cacheable(value = "dishes", key = "#categoryId", cacheManager = "caffeineCacheManager")
     @Override
     public List<Dish> list(Long categoryId) {
         Dish dish = Dish.builder()
@@ -212,9 +214,3 @@ public class DishServiceImpl implements DishService {
         return dishVOList;
     }
 }
-
-
-
-
-
-

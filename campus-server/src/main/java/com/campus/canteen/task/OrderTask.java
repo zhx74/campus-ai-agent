@@ -18,7 +18,8 @@ public class OrderTask {
     private OrderMapper orderMapper;
 
     // 处理超时订单的方法
-    @Scheduled(cron = "0 * * * * ?")
+    // TODO: 已迁移到 RabbitMQ 延时队列，此定时任务已退役
+    // @Scheduled(cron = "0 * * * * ?")
     public void processTimeOutOrder() {
         log.info("定时处理超时订单：{}", LocalDateTime.now());
 
