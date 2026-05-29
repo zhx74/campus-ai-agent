@@ -58,6 +58,15 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
+    @Override
+    public User phoneLogin(String phone) {
+        User user = userMapper.getByPhone(phone);
+        if (user == null) {
+            throw new LoginFailedException(MessageConstant.LOGIN_FAILED);
+        }
+        return user;
+    }
+
     // 调用微信接口服务，获取微信用户的openid
     private String getOpenid(String code) {
         // 调用微信服务器的接口，获得当前用户的openid

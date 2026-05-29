@@ -19,6 +19,9 @@ public interface UserMapper {
     @Select("select * from user where id = #{userId}")
     User getById(Long userId);
 
+    @Select("select * from user where phone = #{phone}")
+    User getByPhone(String phone);
+
     // 根据动态条件来统计用户数量
     Integer countByMap(Map map);
 }

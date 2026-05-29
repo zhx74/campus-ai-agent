@@ -1,0 +1,9 @@
+[33mcommit 850a806957ffb9c5df54ec3d3893075d8de15e36[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;32mfeature/redisson-config[m[33m)[m
+Author: zhx1 <1545209982@qq.com>
+Date:   Wed May 13 22:50:07 2026 +0800
+
+    chore: 添加Redisson配置文件
+
+ campus-server/src/main/resources/application.yml      | 4 [32m++++[m
+ campus-server/src/main/resources/redisson-config.yaml | 1 [32m+[m
+ 2 files changed, 5 insertions(+)

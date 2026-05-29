@@ -15,6 +15,7 @@
     <modules>
         <module>campus-common</module>
         <module>campus-pojo</module>
+        <module>campus-ai</module>
         <module>campus-server</module>
     </modules>
     <properties>

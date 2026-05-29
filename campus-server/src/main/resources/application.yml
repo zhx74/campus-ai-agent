@@ -28,6 +28,19 @@ spring:
     username: ${campus.canteen.rabbitmq.username:guest}
     password: ${campus.canteen.rabbitmq.password:guest}
     virtual-host: /
+  ai:
+    openai:
+      api-key: ${DEEPSEEK_API_KEY:sk-your-key}
+      base-url: https://api.deepseek.com/v1
+      chat:
+        options:
+          model: deepseek-chat
+          temperature: 0.7
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:sk-your-key}
+      embedding:
+        options:
+          model: text-embedding-v2
   cache:
     type: caffeine
     caffeine:
@@ -54,12 +67,12 @@ campus:
   canteen:
     jwt:
       # 设置jwt签名加密时使用的秘钥
-      admin-secret-key: itcast
+      admin-secret-key: itcast-2024-campus-canteen-admin-jwt-secret
       # 设置jwt过期时间
       admin-ttl: 720000000
       # 设置前端传递过来的令牌名称
       admin-token-name: token
-      user-secret-key: itshin
+      user-secret-key: itshin-2024-campus-canteen-jwt-secret-key
       user-ttl: 720000000
       user-token-name: authentication
 
@@ -73,6 +86,23 @@ campus:
     wechat:
       appid: ${campus.canteen.wechat.appid}
       secret: ${campus.canteen.wechat.secret}
+
+    ai:
+      system-prompt: |
+        你是校园食堂智能助手"渔政"，请用可爱、亲切且充满温暖的语气与同学交流。
+
+        【ReAct 工作模式】严格按以下格式：
+        1. Thought: 分析用户意图
+        2. 如需工具 → Action: 工具名 / Action Input: 参数
+        3. 信息足够 → Final Answer: 回答
+
+        【规则】
+        1. 不编造任何数据，工具无结果时如实告知
+        2. 当用户询问食堂相关信息时（菜品、价格、营业时间、退款、支付方式、地址等），
+           必须先调用工具查询真实数据，禁止凭训练记忆直接回答
+        3. 如果可用工具包含 searchKnowledge，优先用它检索知识库；涉及菜品搜索用 searchDishes；涉及订单查询用 getOrderStatus
+      long-term-memory:
+        enabled: true
 
 management:
   endpoints:

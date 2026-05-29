@@ -39,21 +39,29 @@ public class UserController {
     @Operation(summary = "微信登录")
     public Result<UserLoginVO> login(@RequestBody UserLoginDTO userLoginDTO) {
         log.info("微信用户登录：{}", userLoginDTO.getCode());
-        // 微信登陆
         User user = userService.wxLogin(userLoginDTO);
+        return Result.success(buildLoginVO(user));
+    }
 
-        // 为微信用户生成jwt令牌
-        Map<String , Object> claims = new HashMap<>();
+    // 手机号登录（测试用）
+    @PostMapping("/login/phone")
+    @Operation(summary = "手机号登录")
+    public Result<UserLoginVO> phoneLogin(@RequestBody Map<String, String> body) {
+        String phone = body.get("phone");
+        log.info("手机号登录：{}", phone);
+        User user = userService.phoneLogin(phone);
+        return Result.success(buildLoginVO(user));
+    }
+
+    private UserLoginVO buildLoginVO(User user) {
+        Map<String, Object> claims = new HashMap<>();
         claims.put(JwtClaimsConstant.USER_ID, user.getId());
         String token = JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
-
-        UserLoginVO userLoginVO = UserLoginVO.builder()
+        return UserLoginVO.builder()
                 .id(user.getId())
                 .openid(user.getOpenid())
                 .token(token)
                 .build();
-
-        return Result.success(userLoginVO);
     }
     /**
      * 历史订单查询
