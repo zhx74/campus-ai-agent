@@ -12,8 +12,8 @@ import com.campus.canteen.utils.JwtUtil;
 import com.campus.canteen.vo.OrderVO;
 import com.campus.canteen.vo.UserLoginVO;
 import io.jsonwebtoken.Claims;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +23,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/user/user")
-@Api(tags = "C端用户相关接口")
+@Tag(name = "C端用户相关接口")
 @Slf4j
 public class UserController {
 
@@ -36,7 +36,7 @@ public class UserController {
 
     // 微信登陆
     @PostMapping("/login")
-    @ApiOperation("微信登录")
+    @Operation(summary = "微信登录")
     public Result<UserLoginVO> login(@RequestBody UserLoginDTO userLoginDTO) {
         log.info("微信用户登录：{}", userLoginDTO.getCode());
         // 微信登陆
@@ -64,7 +64,7 @@ public class UserController {
      * @return
      */
     @GetMapping("/historyOrders")
-    @ApiOperation("历史订单查询")
+    @Operation(summary = "历史订单查询")
     public Result<PageResult> page(int page, int pageSize, Integer status) {
         PageResult pageResult = orderService.pageQuery4User(page, pageSize, status);
         return Result.success(pageResult);
@@ -77,7 +77,7 @@ public class UserController {
      * @return
      */
     @GetMapping("/orderDetail/{id}")
-    @ApiOperation("查询订单详情")
+    @Operation(summary = "查询订单详情")
     public Result<OrderVO> details(@PathVariable("id") Long id) {
         OrderVO orderVO = orderService.details(id);
         return Result.success(orderVO);
@@ -89,7 +89,7 @@ public class UserController {
      * @return
      */
     @PutMapping("/cancel/{id}")
-    @ApiOperation("取消订单")
+    @Operation(summary = "取消订单")
     public Result cancel(@PathVariable("id") Long id) throws Exception {
         orderService.userCancelById(id);
         return Result.success();
@@ -102,7 +102,7 @@ public class UserController {
      * @return
      */
     @PostMapping("/repetition/{id}")
-    @ApiOperation("再来一单")
+    @Operation(summary = "再来一单")
     public Result repetition(@PathVariable Long id) {
         orderService.repetition(id);
         return Result.success();

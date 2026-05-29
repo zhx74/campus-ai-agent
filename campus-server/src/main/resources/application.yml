@@ -6,27 +6,21 @@ spring:
     active: dev
   main:
     allow-circular-references: true
-  mvc:
-    pathmatch:
-      matching-strategy: ant_path_matcher
-  cloud:
-    compatibility-verifier:
-      enabled: false
+  autoconfigure:
+    exclude:
+      - org.redisson.spring.starter.RedissonAutoConfiguration
   datasource:
+    driver-class-name: ${campus.canteen.datasource.driver-class-name}
+    url: jdbc:mysql://${campus.canteen.datasource.host}:${campus.canteen.datasource.port}/${campus.canteen.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${campus.canteen.datasource.username}
+    password: ${campus.canteen.datasource.password}
+    type: com.alibaba.druid.pool.DruidDataSource
     druid:
-      driver-class-name: ${campus.canteen.datasource.driver-class-name}
-      url: jdbc:mysql://${campus.canteen.datasource.host}:${campus.canteen.datasource.port}/${campus.canteen.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
-      username: ${campus.canteen.datasource.username}
-      password: ${campus.canteen.datasource.password}
   redis:
     host: ${campus.canteen.redis.host}
     port: ${campus.canteen.redis.port}
     password: ${campus.canteen.redis.password}
     database: ${campus.canteen.redis.database}
-
-  # Redisson配置（使用独立配置文件）
-  redisson:
-    file: classpath:redisson-config.yaml
 
   rabbitmq:
     host: ${campus.canteen.rabbitmq.host:localhost}
@@ -89,6 +83,13 @@ management:
     export:
       prometheus:
         enabled: true
+
+springdoc:
+  group-configs:
+    - group: 管理端
+      paths-to-match: /admin/**
+    - group: 用户端
+      paths-to-match: /user/**
 
 resilience4j:
   ratelimiter:

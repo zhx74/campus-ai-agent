@@ -253,3 +253,13 @@ SELECT '✅ 数据库 campus_canteen 创建成功！' AS message;
 SELECT '✅ 已创建 11 张数据表' AS message;
 SELECT '✅ 已插入示例数据' AS message;
 SELECT '📝 默认管理员账号: admin / 123456' AS message;
+
+
+
+
+
+
+
+
+
+

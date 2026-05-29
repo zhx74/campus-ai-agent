@@ -5,7 +5,7 @@ import com.campus.canteen.vo.SalesTop10ReportVO;
 import com.campus.canteen.vo.TurnoverReportVO;
 import com.campus.canteen.vo.UserReportVO;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.time.LocalDate;
 
 public interface ReportService {

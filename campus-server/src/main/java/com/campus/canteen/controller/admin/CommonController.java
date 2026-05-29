@@ -3,8 +3,8 @@ package com.campus.canteen.controller.admin;
 import com.campus.canteen.constant.MessageConstant;
 import com.campus.canteen.result.Result;
 import com.campus.canteen.utils.AliOssUtil;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -17,14 +17,14 @@ import java.util.UUID;
 // 通用接口
 @RestController
 @RequestMapping("/admin/common")
-@Api(tags = "通用接口")
+@Tag(name = "通用接口")
 @Slf4j
 public class CommonController {
     @Autowired
     private AliOssUtil aliOssUtil;
 
     @PostMapping ("/upload")
-    @ApiOperation("文件上传")
+    @Operation(summary = "文件上传")
     public Result<String> upload(MultipartFile file) throws IOException {
         log.info("文件上传,{}", file);
 
@@ -45,9 +45,4 @@ public class CommonController {
         return Result.error(MessageConstant.UPLOAD_FAILED);
     }
 }
-
-
-
-
-
 
