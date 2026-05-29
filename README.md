@@ -2,13 +2,19 @@
 
 **技术栈**
 
-- 开发语言：Java
-- 框架：Spring Boot
-- 构建工具：Maven
-- 持久层框架：MyBatis
-- 配置管理：YML配置文件
+- 开发语言：Java 17
+- 框架：Spring Boot 3.2.5 + Spring AI 1.0.0
+- 大模型：DeepSeek Chat + DashScope Embedding
+- 构建工具：Maven（多模块）
+- 持久层框架：MyBatis 3.0.3
+- 消息队列：RabbitMQ（延时队列 x-delayed-message）
+- 缓存：Caffeine 本地缓存 + Redis
+- 分布式锁：Redisson
+- 限流熔断：Resilience4j
 - 实时通信：WebSocket
-- 任务调度：Spring Task
+- 任务调度：Spring Task（兜底容灾）
+- 接口文档：Knife4j + OpenAPI 3
+- 链路监控：Micrometer Tracing + Prometheus
 
  
 
@@ -157,6 +163,29 @@
 
  
 
+4. campus-ai 智能客服模块
+
+职责：通用 AI 引擎，零业务依赖，可接入任何 Spring Boot 3 系统
+
+核心架构：
+
+- **ReAct Agent 引擎**
+  - 自研 Thought → Action → Observation → Final Answer 循环
+  - 正则解析 LLM 输出，按标签调度工具执行
+  - maxIterations=10 防无限循环，格式纠错重试机制
+- **Function Calling 工具调度**
+  - ToolRegistry 注册中心 + ToolProvider SPI 扩展点
+  - 内置 searchDishes / getOrderStatus / searchKnowledge 三工具
+  - 工具描述引导 LLM 精准调用，避免多余工具调用
+- **三层记忆系统**
+  - 工作记忆：LLM context window 内的当前对话
+  - 短期记忆：RedisChatMemory 滑动窗口（max 20条）+ LLM 摘要压缩，24h TTL
+  - 长期记忆：LongTermMemoryService 语义检索 + Redis 持久化 + MemoryExtractor 自动提取用户事实，启动时从 Redis 回灌 VectorStore
+- **RAG 知识检索**
+  - KnowledgeProvider SPI 扩展点，宿主系统播种业务知识
+  - SimpleVectorStore 向量存储 + DashScope Embedding
+  - KnowledgeBaseService.topK=3 语义检索
+
 **项目特色**
 
 - 架构优势
@@ -168,5 +197,5 @@
   - JWT认证：无状态用户认证
   - AOP切面：横切关注点统一处理
   - WebSocket：实时双向通信
-  - 定时任务：自动化业务处理
+  - RabbitMQ延时队列：实时订单超时取消（x-delayed-message），Spring Task 兜底容灾
   - MyBatis增强：XML配置灵活的SQL操作
