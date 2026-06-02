@@ -13,16 +13,6 @@
     <description>通用 AI 引擎：ReAct Agent、三层记忆、向量检索 RAG、SPI 扩展点</description>
 
     <dependencies>
-        <dependency>
-            <groupId>com.campus</groupId>
-            <artifactId>campus-common</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>com.campus</groupId>
-            <artifactId>campus-pojo</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

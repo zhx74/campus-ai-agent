@@ -1,7 +1,7 @@
 package com.campus.canteen.ai.controller;
 
 import com.campus.canteen.ai.service.AiChatService;
-import com.campus.canteen.dto.ChatDTO;
+import com.campus.canteen.ai.dto.ChatDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;

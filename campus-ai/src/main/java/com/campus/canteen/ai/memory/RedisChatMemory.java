@@ -1,6 +1,6 @@
 package com.campus.canteen.ai.memory;
 
-import com.campus.canteen.dto.ChatMessageDTO;
+import com.campus.canteen.ai.dto.ChatMessageDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;

@@ -3,8 +3,6 @@ package com.campus.canteen.ai.memory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
 
-import java.util.Map;
-
 /**
  * 从对话回合中自动提取值得长期记忆的用户信息。
  * 调用 LLM 进行意图提取，返回事实列表供 LongTermMemoryService 保存。
@@ -29,19 +27,18 @@ public class MemoryExtractor {
             从以下对话中提取关于用户的值得长期记忆的信息：
 
             【提取规则】
-            1. 只提取用户明确表达的偏好、习惯、限制条件（如口味偏好、过敏源、常用地址）
+            1. 只提取用户明确表达的偏好、习惯、限制条件（如偏好、约束、常用信息）
             2. 只提取明确的事实，不要推测
             3. 每条事实一句话，不要编号，不要前缀
             4. 如果没有值得记忆的信息，只输出一个词：无
 
             【示例】
             对话：
-            用户: 我喜欢吃辣，有什么推荐吗？
-            助手: 推荐您尝试麻辣香锅和麻婆豆腐盖饭
+            用户: 帮我查一下我的订单状态，订单号 ORD001
+            助手: 好的，正在为您查询订单 ORD001
 
             输出：
-            用户偏好辣味食物
-            用户询问过辣味菜品推荐
+            用户查询了订单 ORD001
 
             对话：
             用户: 你好

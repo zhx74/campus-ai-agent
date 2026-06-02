@@ -38,7 +38,7 @@ public class AiFoundationConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "campus.canteen.ai.long-term-memory.enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnProperty(name = "campus.ai.long-term-memory.enabled", havingValue = "true", matchIfMissing = true)
     public LongTermMemoryService longTermMemoryService(VectorStore vectorStore,
                                                        StringRedisTemplate redisTemplate,
                                                        MemoryExtractor memoryExtractor) {

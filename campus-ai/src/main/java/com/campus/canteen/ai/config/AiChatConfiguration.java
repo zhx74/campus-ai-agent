@@ -19,7 +19,7 @@ public class AiChatConfiguration {
     private static final int MAX_ITERATIONS = 10;
     private static final int HISTORY_WINDOW_SIZE = 20;
 
-    @Value("${campus.canteen.ai.system-prompt:}")
+    @Value("${campus.ai.system-prompt:}")
     private String externalSystemPrompt;
 
     @Bean
@@ -55,7 +55,7 @@ public class AiChatConfiguration {
 
     private String defaultSystemPrompt() {
         return """
-            你是一名智能客服助手。请用亲切、友好的语气与用户交流。
+            请遵循 ReAct 模式工作。
 
             【ReAct 工作模式】
             你必须严格按照以下步骤工作：
