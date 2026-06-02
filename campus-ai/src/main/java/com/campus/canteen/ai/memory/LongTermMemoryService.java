@@ -1,6 +1,8 @@
 package com.campus.canteen.ai.memory;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +22,8 @@ public class LongTermMemoryService {
     private final VectorStore vectorStore;
     private final StringRedisTemplate redisTemplate;
     private final MemoryExtractor memoryExtractor;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .setSerializationInclusion(JsonInclude.Include.NON_NULL);
     private final int maxFactsPerUser;
 
     private static final String REDIS_KEY_PREFIX = "user:memory:";
@@ -47,7 +50,12 @@ public class LongTermMemoryService {
             Map<Object, Object> entries = redisTemplate.opsForHash().entries(key);
             for (Object entry : entries.values()) {
                 try {
-                    Document doc = objectMapper.readValue(entry.toString(), Document.class);
+                    Map<String, Object> map = objectMapper.readValue(
+                            entry.toString(), new TypeReference<>() {});
+                    String text = (String) map.get("text");
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> metadata = (Map<String, Object>) map.get("metadata");
+                    Document doc = new Document(text, metadata != null ? metadata : Map.of());
                     vectorStore.add(List.of(doc));
                     total++;
                 } catch (Exception e) {
