@@ -23,6 +23,8 @@ import com.campus.canteen.vo.OrderSubmitVO;
 import com.campus.canteen.vo.OrderVO;
 import com.campus.canteen.websocket.WebSocketServer;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +58,8 @@ public class OrderServiceImpl implements OrderService {
     private WebSocketServer websocketServer;
     @Autowired
     private RabbitTemplate rabbitTemplate;
+    @Autowired
+    private RedissonClient redissonClient;
 
     // 用户下单
     @Transactional
@@ -77,8 +81,22 @@ public class OrderServiceImpl implements OrderService {
             throw new ShoppingCartBusinessException(MessageConstant.SHOPPING_CART_IS_NULL);
         }
 
-        // 创建订单实体
-        Orders order = new Orders();
+        // 提取购物车中的菜品/套餐ID，按单品加锁，不相关的菜品互不阻塞
+        List<String> lockKeys = shoppingCartList.stream()
+                .map(cart -> cart.getDishId() != null
+                        ? "order:dish:" + cart.getDishId()
+                        : "order:setmeal:" + cart.getSetmealId())
+                .distinct()
+                .toList();
+
+        RLock[] locks = lockKeys.stream()
+                .map(key -> redissonClient.getLock(key))
+                .toArray(RLock[]::new);
+        RLock multiLock = redissonClient.getMultiLock(locks);
+        multiLock.lock();
+        try {
+            // 创建订单实体
+            Orders order = new Orders();
         BeanUtils.copyProperties(ordersSubmitDTO, order);
         order.setPhone(addressBook.getPhone());
         order.setAddress(addressBook.getDetail());
@@ -127,7 +145,10 @@ public class OrderServiceImpl implements OrderService {
                 .orderAmount(order.getAmount())
                 .build();
 
-        return orderSubmitVO;
+            return orderSubmitVO;
+        } finally {
+            multiLock.unlock();
+        }
     }
 
     /**
@@ -156,6 +177,7 @@ public class OrderServiceImpl implements OrderService {
         Orders orderDB = orderMapper.getByNumber(ordersPaymentDTO.getOrderNumber());
         map.put("orderId", orderDB.getId());
         map.put("content", "订单号：" + ordersPaymentDTO.getOrderNumber());
+        map.put("sendTime", System.currentTimeMillis());
 
         String json = JSONObject.toJSONString(map);
         websocketServer.sendToAllClient(json);
@@ -425,6 +447,7 @@ public class OrderServiceImpl implements OrderService {
         map.put("type", 2);
         map.put("orders", id);
         map.put("content", "订单号：" + ordersDB.getNumber());
+        map.put("sendTime", System.currentTimeMillis());
 
         String json = JSON.toJSONString(map);
         websocketServer.sendToAllClient(json);

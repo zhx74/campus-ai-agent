@@ -64,9 +64,19 @@ public class OrderConsumer {
             throw new ShoppingCartBusinessException(MessageConstant.SHOPPING_CART_IS_NULL);
         }
 
-        // 分布式锁防止超卖
-        RLock lock = redissonClient.getLock("inventory:lock");
-        lock.lock();
+        // 提取购物车中涉及的菜品/套餐ID，按单品加锁，不相关的菜品互不阻塞
+        List<String> lockKeys = shoppingCartList.stream()
+                .map(cart -> cart.getDishId() != null
+                        ? "order:dish:" + cart.getDishId()
+                        : "order:setmeal:" + cart.getSetmealId())
+                .distinct()
+                .toList();
+
+        RLock[] locks = lockKeys.stream()
+                .map(key -> redissonClient.getLock(key))
+                .toArray(RLock[]::new);
+        RLock multiLock = redissonClient.getMultiLock(locks);
+        multiLock.lock();
         try {
             // 向订单表插入数据
             Orders orders = new Orders();
@@ -93,7 +103,7 @@ public class OrderConsumer {
             // 清空购物车
             shoppingCartMapper.deleteById(userId);
         } finally {
-            lock.unlock();
+            multiLock.unlock();
         }
     }
 

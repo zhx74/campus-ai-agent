@@ -8,6 +8,7 @@ import com.campus.canteen.service.OrderService;
 import com.campus.canteen.vo.OrderPaymentVO;
 import com.campus.canteen.vo.OrderSubmitVO;
 import com.campus.canteen.vo.OrderVO;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,11 +48,17 @@ public class OrderController {
      */
     @PutMapping("/payment")
     @Operation(summary = "订单支付")
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "paymentFallback")
     public Result<OrderPaymentVO> payment(@RequestBody OrdersPaymentDTO ordersPaymentDTO) throws Exception {
         log.info("订单支付：{}", ordersPaymentDTO);
         OrderPaymentVO orderPaymentVO = orderService.payment(ordersPaymentDTO);
         log.info("生成预支付交易单：{}", orderPaymentVO);
         return Result.success(orderPaymentVO);
+    }
+
+    public Result<OrderPaymentVO> paymentFallback(OrdersPaymentDTO ordersPaymentDTO, Throwable t) {
+        log.error("支付服务熔断降级：{}", t.getMessage());
+        return Result.error("支付服务暂不可用，请稍后重试");
     }
 
     /**

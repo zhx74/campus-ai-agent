@@ -19,6 +19,7 @@ import com.campus.canteen.vo.DishVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +43,7 @@ public class DishServiceImpl implements DishService {
     // 新增菜品和对应的口味
     @Override
     @Transactional
+    @CacheEvict(value = {"dishes", "dishWithFlavors"}, allEntries = true)
     public void savaWithFlavor(DishDTO dishDTO) {
 
         Dish dish = new Dish();
@@ -77,6 +79,7 @@ public class DishServiceImpl implements DishService {
     // 菜品批量删除
     @Transactional
     @Override
+    @CacheEvict(value = {"dishes", "dishWithFlavors"}, allEntries = true)
     public void deleteBatch(List<Long> ids) {
         // 判断当前菜品是否能够删除---是否存在起售�?
         for (Long id : ids) {
@@ -130,6 +133,7 @@ public class DishServiceImpl implements DishService {
 
     // 修改菜品基本信息和口�?
     @Override
+    @CacheEvict(value = {"dishes", "dishWithFlavors"}, allEntries = true)
     public void updateWithFlavor(DishDTO dishDTO) {
         Dish dish = new Dish();
         BeanUtils.copyProperties(dishDTO, dish);
@@ -153,6 +157,7 @@ public class DishServiceImpl implements DishService {
 
     // 菜品起售停售
     @Override
+    @CacheEvict(value = {"dishes", "dishWithFlavors"}, allEntries = true)
     public void startOrStop(Integer status, Long id) {
         Dish dish = Dish.builder()
                 .id(id)
@@ -179,7 +184,7 @@ public class DishServiceImpl implements DishService {
     }
 
     // 根据分类id来查询菜�?
-    @Cacheable(value = "dishes", key = "#categoryId", cacheManager = "caffeineCacheManager")
+    @Cacheable(value = "dishes", key = "#categoryId")
     @Override
     public List<Dish> list(Long categoryId) {
         Dish dish = Dish.builder()
@@ -195,6 +200,7 @@ public class DishServiceImpl implements DishService {
      * @param dish
      * @return
              */
+    @Cacheable(value = "dishWithFlavors", key = "#dish.categoryId")
     public List<DishVO> listWithFlavor(Dish dish) {
         List<Dish> dishList = dishMapper.list(dish);
 

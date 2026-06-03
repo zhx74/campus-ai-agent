@@ -42,9 +42,9 @@ spring:
         options:
           model: text-embedding-v2
   cache:
-    type: caffeine
-    caffeine:
-      spec: maximumSize=1000,expireAfterWrite=30m
+    type: redis
+    redis:
+      time-to-live: 30m
 
 mybatis:
   #mapper配置文件
