@@ -17,8 +17,8 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public Flux<String> chatStream(String message, String sessionId, String userId) {
-        return Flux.just(reActAgent.execute(message, sessionId, userId))
-                .doOnError(e -> log.error("AI error, sessionId={}", sessionId, e));
+        return reActAgent.executeStream(message, sessionId, userId)
+                .doOnError(e -> log.error("AI stream error, sessionId={}", sessionId, e));
     }
 
     @Override

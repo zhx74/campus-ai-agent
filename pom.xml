@@ -150,12 +150,6 @@
                 <version>0.4.8</version>
             </dependency>
             <!-- RabbitMQ (version managed by spring-boot-starter-parent) -->
-            <!-- Caffeine 缓存 -->
-            <dependency>
-                <groupId>com.github.ben-manes.caffeine</groupId>
-                <artifactId>caffeine</artifactId>
-                <version>3.1.1</version>
-            </dependency>
             <!-- Redisson 分布式锁 -->
             <dependency>
                 <groupId>org.redisson</groupId>

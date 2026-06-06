@@ -6,6 +6,7 @@ import com.campus.canteen.ai.memory.LongTermMemoryService;
 import com.campus.canteen.ai.spi.ToolProvider;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.StreamingChatModel;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -33,16 +34,19 @@ public class AiChatConfiguration {
 
     @Bean
     public ReActAgent reActAgent(ChatModel chatModel,
+                                  ObjectProvider<StreamingChatModel> streamingChatModelProvider,
                                   ToolRegistry toolRegistry,
                                   ChatMemory chatMemory,
                                   ObjectProvider<LongTermMemoryService> longTermMemoryProvider) {
         LongTermMemoryService longTermMemory = longTermMemoryProvider.getIfAvailable();
+        StreamingChatModel streamingChatModel = streamingChatModelProvider.getIfAvailable();
         String systemPrompt = (externalSystemPrompt != null && !externalSystemPrompt.isBlank())
                 ? externalSystemPrompt
                 : defaultSystemPrompt();
 
         return new ReActAgent(
                 chatModel,
+                streamingChatModel,
                 toolRegistry,
                 systemPrompt,
                 chatMemory,

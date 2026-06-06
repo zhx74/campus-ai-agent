@@ -129,11 +129,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
-        <!-- Caffeine 缓存 -->
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-        </dependency>
         <!-- Redisson 分布式锁 -->
         <dependency>
             <groupId>org.redisson</groupId>

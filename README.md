@@ -8,7 +8,7 @@
 - 构建工具：Maven（多模块）
 - 持久层框架：MyBatis 3.0.3
 - 消息队列：RabbitMQ（延时队列 x-delayed-message）
-- 缓存：Caffeine 本地缓存 + Redis
+- 缓存：Redis
 - 分布式锁：Redisson
 - 限流熔断：Resilience4j
 - 实时通信：WebSocket

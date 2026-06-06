@@ -13,6 +13,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -27,6 +28,7 @@ public class LongTermMemoryService {
     private final int maxFactsPerUser;
 
     private static final String REDIS_KEY_PREFIX = "user:memory:";
+    private static final String DELETED_KEY_PREFIX = "user:memory:deleted:";
     private static final String USER_ID_PREFIX = "user:";
 
     public LongTermMemoryService(VectorStore vectorStore, StringRedisTemplate redisTemplate,
@@ -111,9 +113,22 @@ public class LongTermMemoryService {
             if (results == null || results.isEmpty()) {
                 return null;
             }
-            return results.stream()
+
+            // 获取已删除的 factId 集合，过滤掉已从 Redis 删除但 VectorStore 中残留的向量
+            Set<String> deletedIds = getDeletedIds(userId);
+
+            String joined = results.stream()
+                    .filter(d -> {
+                        if (deletedIds.isEmpty()) return true;
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> meta = d.getMetadata();
+                        String factId = meta != null ? (String) meta.get("_id") : null;
+                        return factId == null || !deletedIds.contains(factId);
+                    })
                     .map(d -> "- " + d.getText().replace(USER_ID_PREFIX + userId + " | ", ""))
                     .collect(Collectors.joining("\n"));
+
+            return joined.isEmpty() ? null : joined;
         } catch (Exception e) {
             log.error("长期记忆检索失败，userId={}", userId, e);
             return null;
@@ -123,8 +138,24 @@ public class LongTermMemoryService {
     public void delete(String userId, String factId) {
         try {
             redisTemplate.opsForHash().delete(REDIS_KEY_PREFIX + userId, factId);
+            // 记录已删除的 factId，用于在 search() 中过滤 VectorStore 残留向量
+            redisTemplate.opsForSet().add(DELETED_KEY_PREFIX + userId, factId);
         } catch (Exception e) {
             log.error("长期记忆删除失败，userId={}", userId, e);
+        }
+    }
+
+    /**
+     * 获取某用户已删除的 factId 集合。
+     * SimpleVectorStore 不支持 delete，通过此集合在检索时过滤残留向量。
+     */
+    private Set<String> getDeletedIds(String userId) {
+        try {
+            Set<String> ids = redisTemplate.opsForSet().members(DELETED_KEY_PREFIX + userId);
+            return ids != null ? ids : Set.of();
+        } catch (Exception e) {
+            log.warn("获取已删除记忆ID失败，userId={}", userId, e);
+            return Set.of();
         }
     }
 }

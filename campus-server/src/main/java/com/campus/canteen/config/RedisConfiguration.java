@@ -38,14 +38,18 @@ public class RedisConfiguration {
     }
 
     @Bean
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory,
+                                     RedissonClient redissonClient) {
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(30))
                 .serializeValuesWith(
                         RedisSerializationContext.SerializationPair
                                 .fromSerializer(new GenericJackson2JsonRedisSerializer())
                 );
-        return RedisCacheManager.builder(connectionFactory).cacheDefaults(config).build();
+        RedisCacheManager nativeManager = RedisCacheManager.builder(connectionFactory)
+                .cacheDefaults(config)
+                .build();
+        return new AntiBreakdownCacheManager(nativeManager, redissonClient);
     }
 
     @Bean
