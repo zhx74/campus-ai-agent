@@ -15,6 +15,9 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 
@@ -44,12 +47,27 @@ public class RedisConfiguration {
                 .entryTtl(Duration.ofMinutes(30))
                 .serializeValuesWith(
                         RedisSerializationContext.SerializationPair
-                                .fromSerializer(new GenericJackson2JsonRedisSerializer())
+                                .fromSerializer(cacheSerializer())
                 );
         RedisCacheManager nativeManager = RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
                 .build();
         return new AntiBreakdownCacheManager(nativeManager, redissonClient);
+    }
+
+    /**
+     * 缓存专用序列化器：开启 DefaultTyping，
+     * 让 JSON 中每个对象都携带 @class 类型信息，
+     * 解决 List<Dish> 等泛型集合反序列化时元素类型丢失的问题。
+     */
+    private GenericJackson2JsonRedisSerializer cacheSerializer() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());       // 支持 LocalDateTime 等 Java 8 时间类型
+        mapper.activateDefaultTyping(                       // 写入 @class 类型标记
+                LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.NON_FINAL
+        );
+        return new GenericJackson2JsonRedisSerializer(mapper);
     }
 
     @Bean

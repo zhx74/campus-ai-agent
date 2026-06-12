@@ -40,7 +40,7 @@ public class OrderTask {
     public void processDeliveryOrder() {
         log.info("定时处理处于派送中的订单：{}", LocalDateTime.now());
 
-        List<Orders> ordersList = orderMapper.getByStatusAndOrderTimeLT(Orders.DELIVERY_IN_PROGRESS, LocalDateTime.now().minusHours(-1));
+        List<Orders> ordersList = orderMapper.getByStatusAndOrderTimeLT(Orders.DELIVERY_IN_PROGRESS, LocalDateTime.now().minusHours(1));
 
         if (ordersList != null && !ordersList.isEmpty()) {
             for (Orders orders : ordersList) {
