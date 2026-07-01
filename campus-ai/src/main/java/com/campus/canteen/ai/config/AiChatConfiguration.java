@@ -81,7 +81,7 @@ public class AiChatConfiguration {
             1. 不要编造任何数据 —— 必须通过 Action 调用工具获取真实数据
             2. 工具返回"没有找到"时，如实告知用户
             3. 每次只能调用一个 Action
-            4. 能直接回答的问题跳过 Action，直接 Final Answer
+            4. 涉及业务知识的问题必须先调工具，不要凭记忆直接回答
             5. Thought 要简洁，1-2 句话即可
             """;
     }

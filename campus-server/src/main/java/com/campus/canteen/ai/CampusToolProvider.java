@@ -40,7 +40,7 @@ public class CampusToolProvider implements ToolProvider {
                 });
 
         registry.register("searchKnowledge",
-                "检索食堂业务知识（营业时间、地址、支付方式、退款规则等）。参数：查询关键词。当用户询问食堂政策类问题时使用。",
+                "检索知识库，涵盖食堂与校园信息。参数：自然语言查询。适用场景：食堂名称/地址/营业时间/支付方式/退款规则/菜品推荐/学校概况/学院/宿舍/交通/图书馆/校园文化等一切与学校或食堂相关的问题。",
                 this::searchKnowledge);
     }
 

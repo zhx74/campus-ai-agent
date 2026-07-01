@@ -200,7 +200,7 @@ public class DishServiceImpl implements DishService {
      * @param dish
      * @return
              */
-    @Cacheable(value = "dishWithFlavors", key = "#dish.categoryId")
+    @Cacheable(value = "dishWithFlavors", key = "#dish.categoryId ?: 'all'")
     public List<DishVO> listWithFlavor(Dish dish) {
         List<Dish> dishList = dishMapper.list(dish);
 

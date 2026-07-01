@@ -1,6 +1,7 @@
 package com.campus.canteen.ai.controller;
 
 import com.campus.canteen.ai.service.AiChatService;
+import com.campus.canteen.ai.service.DocumentImportService;
 import com.campus.canteen.ai.dto.ChatDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -9,6 +10,8 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/ai")
 @Tag(name = "AI 智能客服")
@@ -16,9 +19,12 @@ import reactor.core.publisher.Flux;
 public class AiChatController {
 
     private final AiChatService aiChatService;
+    private final DocumentImportService documentImportService;
 
-    public AiChatController(AiChatService aiChatService) {
+    public AiChatController(AiChatService aiChatService,
+                            DocumentImportService documentImportService) {
         this.aiChatService = aiChatService;
+        this.documentImportService = documentImportService;
     }
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -41,5 +47,12 @@ public class AiChatController {
                 chatDTO.getSessionId(),
                 chatDTO.getUserId()
         );
+    }
+
+    @PostMapping("/import-docs")
+    @Operation(summary = "导入文档到向量数据库")
+    public Map<String, Object> importDocs() {
+        log.info("触发文档导入");
+        return documentImportService.importDocuments();
     }
 }

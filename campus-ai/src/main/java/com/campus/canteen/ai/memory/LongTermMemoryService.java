@@ -11,9 +11,9 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -28,7 +28,6 @@ public class LongTermMemoryService {
     private final int maxFactsPerUser;
 
     private static final String REDIS_KEY_PREFIX = "user:memory:";
-    private static final String DELETED_KEY_PREFIX = "user:memory:deleted:";
     private static final String USER_ID_PREFIX = "user:";
 
     public LongTermMemoryService(VectorStore vectorStore, StringRedisTemplate redisTemplate,
@@ -39,50 +38,83 @@ public class LongTermMemoryService {
         this.maxFactsPerUser = maxFactsPerUser;
     }
 
+    private static final String RESTORE_KEY = "memory:restored";
+
     @PostConstruct
     public void restore() {
+        try {
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(RESTORE_KEY))) {
+                log.info("长期记忆已在 Milvus 中，跳过回灌");
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("检查回灌标记失败，继续执行回灌: {}", e.getMessage());
+        }
+
         log.info("开始从 Redis 回灌长期记忆...");
         var keys = redisTemplate.keys(REDIS_KEY_PREFIX + "*");
         if (keys == null || keys.isEmpty()) {
             log.info("未找到长期记忆数据");
+            markRestored();
             return;
         }
-        int total = 0;
+
+        // 收集所有文档，按 25 条一批写入 Milvus（DashScope Embedding API 限制）
+        List<Document> allDocs = new ArrayList<>();
         for (String key : keys) {
             Map<Object, Object> entries = redisTemplate.opsForHash().entries(key);
             for (Object entry : entries.values()) {
                 try {
                     Map<String, Object> map = objectMapper.readValue(
                             entry.toString(), new TypeReference<>() {});
+                    String id = (String) map.get("id");
                     String text = (String) map.get("text");
                     @SuppressWarnings("unchecked")
                     Map<String, Object> metadata = (Map<String, Object>) map.get("metadata");
-                    Document doc = new Document(text, metadata != null ? metadata : Map.of());
-                    vectorStore.add(List.of(doc));
-                    total++;
+                    allDocs.add(new Document(id, text, metadata != null ? metadata : Map.of()));
                 } catch (Exception e) {
-                    log.error("回灌记忆失败: {}", entry, e);
+                    log.error("回灌记忆解析失败: {}", entry, e);
                 }
             }
         }
-        log.info("长期记忆回灌完成，共 {} 条", total);
+
+        int BATCH_SIZE = 25;
+        for (int i = 0; i < allDocs.size(); i += BATCH_SIZE) {
+            var batch = allDocs.subList(i, Math.min(i + BATCH_SIZE, allDocs.size()));
+            try {
+                vectorStore.add(batch);
+            } catch (Exception e) {
+                log.error("回灌批次写入失败（{}/{}）: {}", i / BATCH_SIZE + 1,
+                        (allDocs.size() + BATCH_SIZE - 1) / BATCH_SIZE, e.getMessage());
+            }
+        }
+        log.info("长期记忆回灌完成，共 {} 条", allDocs.size());
+        markRestored();
+    }
+
+    private void markRestored() {
+        try {
+            redisTemplate.opsForValue().set(RESTORE_KEY, "1");
+        } catch (Exception e) {
+            log.warn("回灌标记写入失败: {}", e.getMessage());
+        }
     }
 
     public void save(String userId, String fact, Map<String, Object> meta) {
         String id = UUID.randomUUID().toString();
         var metadata = new java.util.HashMap<>(meta != null ? meta : Map.of());
         metadata.put("_id", id);
-        Document doc = new Document(USER_ID_PREFIX + userId + " | " + fact, metadata);
+        Document doc = new Document(id, USER_ID_PREFIX + userId + " | " + fact, metadata);
         try {
             vectorStore.add(List.of(doc));
             String json = objectMapper.writeValueAsString(doc);
             redisTemplate.opsForHash().put(REDIS_KEY_PREFIX + userId, id, json);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             log.error("长期记忆保存失败，userId={}", userId, e);
         }
     }
 
-    public void extractAndSave(String userId, String dialogue) {
+    public synchronized void extractAndSave(String userId, String dialogue) {
         if (memoryExtractor == null) {
             return;
         }
@@ -107,25 +139,33 @@ public class LongTermMemoryService {
             String contextualQuery = USER_ID_PREFIX + userId + " | " + query;
             SearchRequest searchRequest = SearchRequest.builder()
                     .query(contextualQuery)
-                    .topK(topK)
+                    .topK(topK * 10)  // 多取一些，按用户过滤后仍够数
                     .build();
             List<Document> results = vectorStore.similaritySearch(searchRequest);
             if (results == null || results.isEmpty()) {
+                log.info("长期记忆搜索无结果，userId={}, query={}", userId, query);
                 return null;
             }
 
-            // 获取已删除的 factId 集合，过滤掉已从 Redis 删除但 VectorStore 中残留的向量
-            Set<String> deletedIds = getDeletedIds(userId);
+            // 只保留属于该用户的记忆（以 "user:{userId}" 开头的文档）
+            String userPrefix = USER_ID_PREFIX + userId + " | ";
+            List<Document> userMemories = results.stream()
+                    .filter(d -> d.getText() != null && d.getText().startsWith(userPrefix))
+                    .limit(topK)
+                    .collect(Collectors.toList());
 
-            String joined = results.stream()
-                    .filter(d -> {
-                        if (deletedIds.isEmpty()) return true;
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> meta = d.getMetadata();
-                        String factId = meta != null ? (String) meta.get("_id") : null;
-                        return factId == null || !deletedIds.contains(factId);
-                    })
-                    .map(d -> "- " + d.getText().replace(USER_ID_PREFIX + userId + " | ", ""))
+            log.info("长期记忆搜索：共返回 {} 条，其中用户记忆 {} 条", results.size(), userMemories.size());
+            for (Document d : userMemories) {
+                log.info("  → {}", d.getText());
+            }
+
+            if (userMemories.isEmpty()) {
+                log.info("长期记忆：无匹配的用户记忆，userId={}", userId);
+                return null;
+            }
+
+            String joined = userMemories.stream()
+                    .map(d -> "- " + d.getText().replace(userPrefix, ""))
                     .collect(Collectors.joining("\n"));
 
             return joined.isEmpty() ? null : joined;
@@ -138,24 +178,10 @@ public class LongTermMemoryService {
     public void delete(String userId, String factId) {
         try {
             redisTemplate.opsForHash().delete(REDIS_KEY_PREFIX + userId, factId);
-            // 记录已删除的 factId，用于在 search() 中过滤 VectorStore 残留向量
-            redisTemplate.opsForSet().add(DELETED_KEY_PREFIX + userId, factId);
+            // Milvus 支持原生按 id 删除，无需 Redis 标记补偿
+            vectorStore.delete(List.of(factId));
         } catch (Exception e) {
             log.error("长期记忆删除失败，userId={}", userId, e);
-        }
-    }
-
-    /**
-     * 获取某用户已删除的 factId 集合。
-     * SimpleVectorStore 不支持 delete，通过此集合在检索时过滤残留向量。
-     */
-    private Set<String> getDeletedIds(String userId) {
-        try {
-            Set<String> ids = redisTemplate.opsForSet().members(DELETED_KEY_PREFIX + userId);
-            return ids != null ? ids : Set.of();
-        } catch (Exception e) {
-            log.warn("获取已删除记忆ID失败，userId={}", userId, e);
-            return Set.of();
         }
     }
 }

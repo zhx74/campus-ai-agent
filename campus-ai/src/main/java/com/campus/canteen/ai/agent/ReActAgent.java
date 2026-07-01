@@ -75,6 +75,7 @@ public class ReActAgent {
     public Flux<String> executeStream(String userMessage, String sessionId, String userId) {
         return Flux.defer(() -> {
             List<Message> messages = buildMessages(userMessage, sessionId, userId);
+            boolean toolCalled = false;
 
             for (int i = 0; i < maxIterations; i++) {
                 log.info("═══ ReAct stream iteration {}/{} ═══", i + 1, maxIterations);
@@ -82,17 +83,7 @@ public class ReActAgent {
                 String llmOutput = callLLM(messages);
                 log.info("LLM output:\n{}", llmOutput);
 
-                // Final Answer → 流式输出
-                Matcher finalMatcher = FINAL_ANSWER_PATTERN.matcher(llmOutput);
-                if (finalMatcher.find()) {
-                    String finalAnswer = finalMatcher.group(1).trim();
-                    log.info("ReAct stream: Final Answer reached, switching to streaming");
-                    persistExchange(sessionId, userMessage, finalAnswer);
-                    extractLongTermMemory(userMessage, finalAnswer, userId);
-                    return streamFinalAnswer(messages, userMessage, finalAnswer);
-                }
-
-                // Action → 执行工具，继续循环
+                // Action → 执行工具，继续循环（优先检查，防止 LLM 跳过工具调用）
                 Matcher actionMatcher = ACTION_PATTERN.matcher(llmOutput);
                 if (actionMatcher.find()) {
                     String actionName = actionMatcher.group(1).trim();
@@ -102,7 +93,28 @@ public class ReActAgent {
                     log.info("ReAct stream: Observation → {}", observation);
                     messages.add(new AssistantMessage(llmOutput));
                     messages.add(new UserMessage("Observation: " + observation));
+                    toolCalled = true;
                     continue;
+                }
+
+                // Final Answer → 流式输出
+                Matcher finalMatcher = FINAL_ANSWER_PATTERN.matcher(llmOutput);
+                if (finalMatcher.find()) {
+                    // 如果从未调用过工具、工具库非空、且问题涉及业务知识，强制 LLM 先调工具
+                    if (!toolCalled && !toolRegistry.isEmpty() && isKnowledgeQuery(userMessage)) {
+                        log.info("ReAct stream: Final Answer 但未调用任何工具，强制要求先检索");
+                        messages.add(new AssistantMessage(llmOutput));
+                        messages.add(new UserMessage(
+                            "【系统强制】你还没有调用任何工具就直接回答了，这违反了规则。"
+                            + "你必须先用 Action 调用 searchKnowledge 检索知识库，"
+                            + "拿到 Observation 后再给出 Final Answer。请立即执行。"));
+                        continue;
+                    }
+                    String finalAnswer = finalMatcher.group(1).trim();
+                    log.info("ReAct stream: Final Answer reached, switching to streaming");
+                    persistExchange(sessionId, userMessage, finalAnswer);
+                    extractLongTermMemory(userMessage, finalAnswer, userId);
+                    return streamFinalAnswer(messages, userMessage, finalAnswer);
                 }
 
                 // 格式错误 → 重试
@@ -161,21 +173,30 @@ public class ReActAgent {
 
     /**
      * 构造流式调用的干净 prompt：
-     * 只保留 Observation 事实 + 用户原始问题，去掉 ReAct 格式约束。
+     * 保留对话历史（上下文记忆）+ Observation 事实 + 用户原始问题，去掉 ReAct 格式约束。
      */
     private List<Message> buildCleanMessagesForStreaming(List<Message> conversation,
                                                          String originalQuestion) {
         List<Message> clean = new ArrayList<>();
         clean.add(new SystemMessage(
-                "你是一个校园食堂智能助手。请根据以下已知信息，直接、自然地回答用户的问题。"
+                "你是一个校园食堂智能助手。请根据以下已知信息和对话历史，直接、自然地回答用户的问题。"
                 + "不要输出思考过程、推理步骤或任何格式标签，只输出面向用户的最终回答。"));
 
         for (Message m : conversation) {
             if (m instanceof UserMessage) {
                 String text = m.getText();
-                if (text.startsWith("Observation:")) {
-                    clean.add(m);
+                // 保留 Observation（工具结果）和历史用户消息，跳过 ReAct 格式纠错提示
+                if (text.startsWith("Observation:")
+                        || text.startsWith("【系统强制】")
+                        || text.startsWith("你的输出不符合")) {
+                    if (text.startsWith("Observation:")) {
+                        clean.add(m);
+                    }
+                } else if (!text.equals(originalQuestion)) {
+                    clean.add(m);  // 历史对话中的用户消息
                 }
+            } else if (m instanceof AssistantMessage) {
+                clean.add(m);  // 历史对话中的助手回复
             }
         }
 
@@ -183,10 +204,10 @@ public class ReActAgent {
         return clean;
     }
 
-    /**
-     * 零成本伪流式：将已有文本按中英文句末标点切分，逐段推送。
-     * 作为 StreamingChatModel 不可用或流式调用失败时的降级方案。
-     */
+//    /**
+//     * 零成本伪流式：将已有文本按中英文句末标点切分，逐段推送。
+//     * 作为 StreamingChatModel 不可用或流式调用失败时的降级方案。
+//     */
     private Flux<String> pseudoStream(String text) {
         if (text == null || text.isEmpty()) {
             return Flux.empty();
@@ -263,5 +284,26 @@ public class ReActAgent {
         } catch (Exception e) {
             log.error("Failed to extract long-term memory for userId={}", userId, e);
         }
+    }
+
+    /**
+     * 判断用户消息是否涉及业务知识（食堂/学校相关），决定是否强制调用工具。
+     * 寒暄类消息（你好、谢谢等）不强制，避免无谓的 RAG 调用。
+     */
+    private boolean isKnowledgeQuery(String message) {
+        if (message == null || message.isBlank()) return false;
+        String[] keywords = {
+            "食堂", "餐厅", "吃饭", "菜品", "菜", "饭", "价格", "多少钱",
+            "营业", "开门", "关门", "时间", "地址", "在哪", "位置",
+            "支付", "付款", "退款", "退钱", "取消", "校园卡",
+            "外卖", "配送", "订单", "状态",
+            "学校", "学院", "宿舍", "图书馆", "交通", "校园",
+            "重邮", "CQUPT", "邮电",
+            "怎么", "如何", "什么", "哪", "几", "推荐"
+        };
+        for (String kw : keywords) {
+            if (message.contains(kw)) return true;
+        }
+        return false;
     }
 }

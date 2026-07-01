@@ -6,6 +6,7 @@ import com.campus.canteen.ai.memory.RedisChatMemory;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,9 +40,9 @@ public class AiFoundationConfiguration {
 
     @Bean
     @ConditionalOnProperty(name = "campus.ai.long-term-memory.enabled", havingValue = "true", matchIfMissing = true)
-    public LongTermMemoryService longTermMemoryService(VectorStore vectorStore,
+    public LongTermMemoryService longTermMemoryService(@Qualifier("memoryVectorStore") VectorStore memoryVectorStore,
                                                        StringRedisTemplate redisTemplate,
                                                        MemoryExtractor memoryExtractor) {
-        return new LongTermMemoryService(vectorStore, redisTemplate, memoryExtractor, 50);
+        return new LongTermMemoryService(memoryVectorStore, redisTemplate, memoryExtractor, 50);
     }
 }

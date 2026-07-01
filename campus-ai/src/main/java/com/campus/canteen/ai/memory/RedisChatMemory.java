@@ -63,6 +63,7 @@ public class RedisChatMemory implements ChatMemory {
             }
             return messagesJson.stream()
                     .map(this::parseMessage)
+                    .filter(java.util.Objects::nonNull)
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("Redis 读取失败，降级为空记忆，conversationId={}", conversationId, e);
@@ -74,7 +75,8 @@ public class RedisChatMemory implements ChatMemory {
         try {
             return objectMapper.readValue(json, ChatMessageDTO.class);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to deserialize chat message", e);
+            log.warn("消息反序列化失败，跳过该条: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -114,8 +116,10 @@ public class RedisChatMemory implements ChatMemory {
         if (summaryEnabled && chatModel != null) {
             String summary = generateSummary(overflow);
             if (summary != null) {
-                result.add(new UserMessage("【对话历史摘要】" + summary));
+                // 裁剪旧消息并将摘要写回 Redis 头部，保证下次 get() 仍可获取上下文
                 trimHistory(conversationId, overflowCount);
+                persistSummary(conversationId, summary);
+                result.add(new UserMessage("【对话历史摘要】" + summary));
             } else {
                 result.addAll(toMessages(overflow));
             }
@@ -124,6 +128,20 @@ public class RedisChatMemory implements ChatMemory {
         }
         result.addAll(toMessages(recent));
         return result;
+    }
+
+    /**
+     * 将摘要作为系统消息插入 Redis 列表头部
+     */
+    private void persistSummary(String conversationId, String summary) {
+        try {
+            String key = KEY_PREFIX + conversationId;
+            ChatMessageDTO summaryMsg = new ChatMessageDTO("system", "对话历史摘要：" + summary);
+            String json = objectMapper.writeValueAsString(summaryMsg);
+            redisTemplate.opsForList().leftPush(key, json);
+        } catch (Exception e) {
+            log.warn("摘要持久化失败，conversationId={}", conversationId, e);
+        }
     }
 
     public List<Message> get(String conversationId, int lastN) {
