@@ -33,10 +33,11 @@ public class ReActAgent {
     private final int historyWindowSize;
     private final boolean longTermMemoryEnabled;
 
+    // 支持 Markdown 加粗格式（**Action:** → Action:），跳过冒号后的 * 字符
     private static final Pattern ACTION_PATTERN =
-            Pattern.compile("Action:\\s*(\\S+)", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("Action:\\s*\\*{0,2}\\s*(\\S+)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ACTION_INPUT_PATTERN =
-            Pattern.compile("Action\\s*Input:\\s*(.+?)(?:\\n|$)", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("Action\\s*Input:\\s*\\*{0,2}\\s*(.+?)(?:\\n|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern FINAL_ANSWER_PATTERN =
             Pattern.compile("Final\\s*Answer:\\s*([\\s\\S]+)", Pattern.CASE_INSENSITIVE);
 
@@ -86,8 +87,8 @@ public class ReActAgent {
                 // Action → 执行工具，继续循环（优先检查，防止 LLM 跳过工具调用）
                 Matcher actionMatcher = ACTION_PATTERN.matcher(llmOutput);
                 if (actionMatcher.find()) {
-                    String actionName = actionMatcher.group(1).trim();
-                    String actionInput = extractActionInput(llmOutput);
+                    String actionName = actionMatcher.group(1).trim().replace("*", "");
+                    String actionInput = sanitizeActionInput(extractActionInput(llmOutput));
                     log.info("ReAct stream: Action → {}({})", actionName, actionInput);
                     String observation = toolRegistry.execute(actionName, actionInput);
                     log.info("ReAct stream: Observation → {}", observation);
@@ -261,6 +262,43 @@ public class ReActAgent {
             return m.group(1).trim();
         }
         return "";
+    }
+
+    /**
+     * 清洗 LLM 生成的工具参数：去除填充语、引号、限制长度。
+     * 防止 LLM 输出 "让我查一下退款规则" 而不是纯粹的 "退款规则"。
+     */
+    private String sanitizeActionInput(String input) {
+        if (input == null || input.isBlank()) return "";
+
+        String cleaned = input;
+
+        // 去除常见填充前缀
+        String[] fillerPrefixes = {
+            "让我查一下", "我来搜索", "我来查询", "我来帮你查", "我来帮你查询",
+            "让我搜索", "让我查询", "帮我查", "帮我搜索", "请查询",
+            "搜索", "查询", "查找"
+        };
+        for (String filler : fillerPrefixes) {
+            if (cleaned.startsWith(filler)) {
+                cleaned = cleaned.substring(filler.length()).trim();
+            }
+        }
+
+        // 去除周围引号
+        if ((cleaned.startsWith("\"") && cleaned.endsWith("\""))
+                || (cleaned.startsWith("「") && cleaned.endsWith("」"))
+                || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+            cleaned = cleaned.substring(1, cleaned.length() - 1).trim();
+        }
+
+        // 限制最大长度（防止 LLM 输出整段文本作为查询）
+        if (cleaned.length() > 100) {
+            cleaned = cleaned.substring(0, 100);
+            log.warn("Action Input 过长，截断为: {}", cleaned);
+        }
+
+        return cleaned;
     }
 
     private void persistExchange(String sessionId, String userMessage, String assistantMessage) {

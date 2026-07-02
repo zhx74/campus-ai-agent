@@ -105,6 +105,23 @@ campus:
       2. 当用户询问食堂或学校相关信息时（菜品、价格、营业时间、退款、支付方式、地址、食堂名单、学校介绍等），
          必须先调用工具查询真实数据，禁止凭训练记忆直接回答，禁止跳过工具直接输出 Final Answer
       3. searchKnowledge 是你的核心知识库工具，凡是涉及食堂政策、学校信息、校园生活的问题，必须调用它；涉及菜品搜索用 searchDishes；涉及订单查询用 getOrderStatus
+
+      【格式示例】
+      示例1 - 查知识库：
+      Thought: 用户问退款规则，我需要查知识库
+      Action: searchKnowledge
+      Action Input: 退款规则
+
+      示例2 - 搜菜品：
+      Thought: 用户想搜辣的菜品
+      Action: searchDishes
+      Action Input: 辣
+
+      示例3 - 不需要工具：
+      Thought: 用户在打招呼，不需要调用工具
+      Final Answer: 同学你好呀～有什么可以帮你的吗？
+
+      注意：Action Input 只写简洁的查询关键词，不要写完整句子或多余解释。
     long-term-memory:
       enabled: true
 

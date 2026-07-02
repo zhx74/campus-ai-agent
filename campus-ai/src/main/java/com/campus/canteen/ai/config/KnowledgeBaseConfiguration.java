@@ -4,7 +4,6 @@ import com.campus.canteen.ai.rag.KnowledgeBaseService;
 import com.campus.canteen.ai.rag.RerankService;
 import io.milvus.client.MilvusServiceClient;
 import io.milvus.param.R;
-import io.milvus.param.collection.DropCollectionParam;
 import io.milvus.param.collection.HasCollectionParam;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,21 +91,23 @@ public class KnowledgeBaseConfiguration {
             log.warn("清理旧播种标记失败: {}", e.getMessage());
         }
 
-        // 清除旧的向量数据（防止已删除的知识源残留向量污染检索结果）
+        // 清除旧的向量数据（保留 collection 结构，只删数据）
+        // 不用 dropCollection — 否则 MilvusVectorStore bean 状态不一致导致后续搜索报错
         try {
             R<Boolean> hasCollection = milvusClient.hasCollection(
                     HasCollectionParam.newBuilder()
                             .withCollectionName(knowledgeCollectionName)
                             .build());
             if (hasCollection.getData() != null && hasCollection.getData()) {
-                milvusClient.dropCollection(
-                        DropCollectionParam.newBuilder()
+                milvusClient.delete(
+                        io.milvus.param.dml.DeleteParam.newBuilder()
                                 .withCollectionName(knowledgeCollectionName)
+                                .withExpr("doc_id != \"\"")
                                 .build());
-                log.info("已清除旧的知识库 collection: {}", knowledgeCollectionName);
+                log.info("已清空旧知识库数据: {}", knowledgeCollectionName);
             }
         } catch (Exception e) {
-            log.warn("清除旧 collection 失败（不影响后续播种）: {}", e.getMessage());
+            log.warn("清空旧数据失败（不影响后续播种）: {}", e.getMessage());
         }
 
         // 读取并切片文档

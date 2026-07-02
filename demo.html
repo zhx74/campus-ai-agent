@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园食堂 - 智能服务平台</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; height: 100vh; }
+    #app { display: flex; flex-direction: column; height: 100vh; max-width: 95vw; margin: 0 auto; background: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.08); position: relative; }
+
+    /* Header */
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header .subtitle { font-size: 12px; opacity: 0.8; }
+    .logo { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .login-status { font-size: 11px; opacity: 0.7; margin-left: auto; }
+
+    /* Tabs */
+    .tabs { display: flex; background: #fff; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+    .tab { flex: 1; padding: 14px; text-align: center; cursor: pointer; font-size: 15px; color: #666; transition: all 0.3s; position: relative; }
+    .tab.active { color: #667eea; font-weight: 600; }
+    .tab.active::after { content: ''; position: absolute; bottom: 0; left: 20%; right: 20%; height: 3px; background: #667eea; border-radius: 3px 3px 0 0; }
+    .tab:hover { background: #f5f5ff; }
+    .tab .badge { position: absolute; top: 6px; right: 20%; background: #e74c3c; color: #fff; font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+
+    /* Main */
+    .main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+    /* ========== Chat ========== */
+    .chat-panel { flex: 1; display: flex; flex-direction: column; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .msg { display: flex; gap: 10px; max-width: 85%; animation: fadeIn 0.3s ease; }
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .msg.assistant .msg-avatar { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+    .msg.user .msg-avatar { background: #e8e8e8; }
+    .msg-bubble { padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; word-break: break-word; }
+    .msg.assistant .msg-bubble { background: #f4f4f8; border-top-left-radius: 4px; }
+    .msg.user .msg-bubble { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-top-right-radius: 4px; }
+    .typing::after { content: '|'; animation: blink 0.8s infinite; }
+    .chat-input-area { padding: 16px 20px; border-top: 1px solid #e8e8e8; display: flex; gap: 10px; flex-shrink: 0; background: #fafafa; }
+    .chat-input-area input { flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 24px; font-size: 14px; outline: none; transition: border 0.3s; }
+    .chat-input-area input:focus { border-color: #667eea; }
+    .chat-input-area button { padding: 10px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; border-radius: 24px; font-size: 14px; cursor: pointer; }
+    .chat-input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .chat-welcome { text-align: center; padding: 60px 20px; color: #999; }
+    .chat-welcome .icon { font-size: 48px; margin-bottom: 12px; }
+    .chat-welcome p { font-size: 14px; margin-top: 8px; }
+    .quick-questions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; }
+    .quick-q { padding: 8px 16px; background: #f0f0ff; border: 1px solid #d0d0ff; border-radius: 20px; font-size: 13px; cursor: pointer; color: #667eea; transition: all 0.2s; }
+    .quick-q:hover { background: #667eea; color: #fff; }
+
+    /* ========== Dishes ========== */
+    .dish-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .category-bar { display: flex; gap: 8px; padding: 16px 20px; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid #eee; }
+    .category-chip { padding: 8px 20px; border-radius: 20px; font-size: 13px; cursor: pointer; white-space: nowrap; border: 1px solid #e0e0e0; background: #fff; color: #666; transition: all 0.2s; }
+    .category-chip.active { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-color: transparent; }
+    .category-chip:hover:not(.active) { border-color: #667eea; color: #667eea; }
+    .dish-grid { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-wrap: wrap; gap: 14px; align-content: flex-start; }
+    .dish-card { border: 1px solid #eee; border-radius: 12px; overflow: hidden; transition: box-shadow 0.3s, transform 0.2s; width: calc(33.333% - 10px); box-sizing: border-box; }
+    .dish-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-2px); }
+    .dish-info { padding: 16px; }
+    .dish-name { font-size: 20px; font-weight: 600; margin-bottom: 10px; }
+    .dish-desc { font-size: 14px; color: #999; margin-bottom: 14px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .dish-bottom { display: flex; justify-content: space-between; align-items: center; }
+    .dish-price { font-size: 22px; font-weight: 700; color: #e74c3c; }
+    .dish-price::before { content: '\00A5'; font-size: 15px; }
+    .dish-flavors { display: flex; gap: 4px; flex-wrap: wrap; }
+    .flavor-tag { font-size: 11px; padding: 2px 8px; background: #f0f0ff; color: #667eea; border-radius: 10px; }
+    .add-btn { padding: 8px 18px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; border-radius: 20px; font-size: 14px; cursor: pointer; transition: opacity 0.2s; }
+    .add-btn:hover { opacity: 0.85; }
+    .add-btn:disabled { opacity: 0.5; }
+
+    /* ========== Cart Drawer ========== */
+    .cart-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 100; animation: fadeIn 0.2s; }
+    .cart-drawer { position: fixed; right: 0; top: 0; bottom: 0; width: 380px; max-width: 90vw; background: #fff; z-index: 101; display: flex; flex-direction: column; box-shadow: -4px 0 20px rgba(0,0,0,0.15); animation: slideIn 0.3s ease; }
+    .cart-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .cart-header h3 { font-size: 18px; }
+    .cart-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+    .cart-items { flex: 1; overflow-y: auto; padding: 16px 20px; }
+    .cart-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+    .cart-item-name { flex: 1; font-size: 14px; font-weight: 500; }
+    .cart-item-price { font-size: 14px; color: #e74c3c; font-weight: 600; }
+    .cart-qty { display: flex; align-items: center; gap: 8px; }
+    .cart-qty button { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ddd; background: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .cart-qty button:hover { background: #f0f0ff; border-color: #667eea; }
+    .cart-qty span { font-size: 15px; min-width: 20px; text-align: center; }
+    .cart-footer { padding: 20px; border-top: 1px solid #eee; }
+    .cart-total { display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 16px; }
+    .cart-total .amount { color: #e74c3c; font-size: 20px; font-weight: 700; }
+    .cart-actions { display: flex; gap: 10px; }
+    .cart-actions button { flex: 1; padding: 12px; border-radius: 24px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-clear { background: #f5f5f5; color: #666; }
+    .btn-checkout { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-weight: 600; }
+    .btn-checkout:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ========== Orders ========== */
+    .orders-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .order-filters { display: flex; gap: 8px; padding: 16px 20px; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid #eee; }
+    .order-list { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .order-card { border: 1px solid #eee; border-radius: 12px; padding: 16px; transition: box-shadow 0.2s; }
+    .order-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .order-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .order-number { font-size: 13px; color: #999; }
+    .order-status { font-size: 13px; padding: 4px 12px; border-radius: 12px; font-weight: 500; }
+    .status-1 { background: #fff3e0; color: #e65100; }
+    .status-2 { background: #e3f2fd; color: #1565c0; }
+    .status-3 { background: #e8f5e9; color: #2e7d32; }
+    .status-4 { background: #f3e5f5; color: #7b1fa2; }
+    .status-5 { background: #e8e8e8; color: #666; }
+    .status-6 { background: #fce4ec; color: #c62828; }
+    .order-dishes { font-size: 14px; color: #333; margin-bottom: 8px; line-height: 1.5; }
+    .order-bottom { display: flex; justify-content: space-between; align-items: center; }
+    .order-amount { font-size: 16px; font-weight: 700; color: #e74c3c; }
+    .order-time { font-size: 12px; color: #bbb; }
+    .order-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .order-actions button { padding: 6px 16px; border-radius: 16px; font-size: 12px; cursor: pointer; border: 1px solid #ddd; background: #fff; color: #666; }
+    .order-actions button:hover { border-color: #667eea; color: #667eea; }
+
+    /* ========== Misc ========== */
+    .empty-state { text-align: center; padding: 60px; color: #ccc; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .loading-bar { height: 3px; background: linear-gradient(90deg, #667eea, #764ba2, #667eea); background-size: 200% 100%; animation: shimmer 1.5s infinite; flex-shrink: 0; }
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 28px; border-radius: 24px; color: #fff; font-size: 14px; z-index: 200; animation: fadeIn 0.3s; }
+    .toast-success { background: #2e7d32; }
+    .toast-error { background: #c62828; }
+
+    /* Floating cart button */
+    .cart-fab { position: absolute; bottom: 20px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 16px rgba(102,126,234,0.4); display: flex; align-items: center; justify-content: center; z-index: 50; transition: transform 0.2s; }
+    .cart-fab:hover { transform: scale(1.1); }
+    .cart-fab .fab-badge { position: absolute; top: -4px; right: -4px; background: #e74c3c; color: #fff; font-size: 11px; min-width: 20px; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">&#127860;</div>
+    <div>
+      <h1>校园食堂智能服务平台</h1>
+      <div class="subtitle">AI Agent + RAG &middot; ReAct &middot; Spring Boot 3</div>
+    </div>
+    <div class="login-status">{{ loginReady ? '&#9989; 已连接' : '&#9203; 连接中...' }}</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">&#129302; AI 助手</div>
+    <div class="tab" :class="{ active: activeTab === 'dishes' }" @click="switchToDishes()">
+      &#127858; 菜品点餐
+      <span class="badge" v-if="cartCount > 0">{{ cartCount }}</span>
+    </div>
+    <div class="tab" :class="{ active: activeTab === 'orders' }" @click="switchToOrders()">&#128230; 我的订单</div>
+  </div>
+
+  <div class="loading-bar" v-if="loading"></div>
+
+  <!-- Toast -->
+  <div class="toast" :class="'toast-' + toast.type" v-if="toast.show">{{ toast.msg }}</div>
+
+  <div class="main">
+    <!-- ===== Chat ===== -->
+    <div class="chat-panel" v-show="activeTab === 'chat'">
+      <div class="chat-messages" ref="chatBox">
+        <div class="chat-welcome" v-if="messages.length === 0">
+          <div class="icon">&#129302;</div>
+          <p><strong>&#x563F;&#xFF01;&#x6211;&#x662F;&#x300C;&#x6E14;&#x653F;&#x300D;&#xFF0C;&#x4F60;&#x7684;&#x98DF;&#x5802;&#x667A;&#x80FD;&#x52A9;&#x624B;</strong></p>
+          <p>&#x53EF;&#x4EE5;&#x95EE;&#x6211;&#x5173;&#x4E8E;&#x83DC;&#x54C1;&#x3001;&#x8425;&#x4E1A;&#x65F6;&#x95F4;&#x3001;&#x652F;&#x4ED8;&#x65B9;&#x5F0F;&#x3001;&#x9000;&#x6B3E;&#x653F;&#x7B56;&#x7B49;&#x4EFB;&#x4F55;&#x95EE;&#x9898;</p>
+          <div class="quick-questions">
+            <div class="quick-q" v-for="q in quickQuestions" :key="q" @click="sendQuick(q)">{{ q }}</div>
+          </div>
+        </div>
+        <div class="msg" :class="m.role" v-for="(m, i) in messages" :key="i">
+          <div class="msg-avatar">{{ m.role === 'user' ? '&#128100;' : '&#129302;' }}</div>
+          <div class="msg-bubble">
+            <span v-if="m.streaming" class="typing">{{ m.content }}</span>
+            <span v-else style="white-space: pre-wrap;">{{ m.content }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <input v-model="inputText" @keyup.enter="sendMessage" placeholder="&#x8F93;&#x5165;&#x4F60;&#x7684;&#x95EE;&#x9898;..." :disabled="streaming" />
+        <button @click="sendMessage" :disabled="streaming || !inputText.trim()">{{ streaming ? '回复中...' : '发送' }}</button>
+      </div>
+    </div>
+
+    <!-- ===== Dishes ===== -->
+    <div class="dish-panel" v-show="activeTab === 'dishes'">
+      <div class="category-bar">
+        <div class="category-chip" :class="{ active: activeCat === null }" @click="loadDishes(null)">&#x5168;&#x90E8;</div>
+        <div class="category-chip" v-for="cat in categories" :key="cat.id"
+             :class="{ active: activeCat === cat.id }" @click="loadDishes(cat.id)">{{ cat.name }}</div>
+      </div>
+      <div class="dish-grid" ref="dishGrid" v-if="displayDishes.length > 0">
+        <div class="dish-card" v-for="dish in displayDishes" :key="dish.id">
+          <div class="dish-info">
+            <div class="dish-name">{{ dish.name }}</div>
+            <div class="dish-desc">{{ dish.description || '暂无描述' }}</div>
+            <div class="dish-bottom">
+              <div class="dish-price">{{ dish.price }}</div>
+              <button class="add-btn" @click="addToCart(dish)" :disabled="addingDish">&#xFF0B; &#x52A0;&#x5165;&#x8D2D;&#x7269;&#x8F66;</button>
+            </div>
+            <div class="dish-flavors" v-if="dish.flavors && dish.flavors.length" style="margin-top:8px;">
+              <span class="flavor-tag" v-for="f in dish.flavors.slice(0, 3)" :key="f.id">{{ f.name }}</span>
+            </div>
+          </div>
+        </div>
+        <button v-if="remainingCount > 0" @click="loadMoreDishes"
+                style="grid-column:1/-1;padding:12px;border:1px dashed #ccc;border-radius:12px;background:#fafafa;color:#667eea;font-size:14px;cursor:pointer;">
+          加载更多（还有 {{ remainingCount }} 道）
+        </button>
+      </div>
+      <div class="empty-state" v-if="displayDishes.length === 0 && !loading">
+        <div class="icon">&#127860;</div>
+        <p>暂无菜品数据</p>
+      </div>
+    </div>
+
+    <!-- ===== Orders ===== -->
+    <div class="orders-panel" v-show="activeTab === 'orders'">
+      <div class="order-filters">
+        <div class="category-chip" :class="{ active: orderFilter === null }" @click="loadOrders(null)">&#x5168;&#x90E8;</div>
+        <div class="category-chip" :class="{ active: orderFilter === 1 }" @click="loadOrders(1)">&#x5F85;&#x4ED8;&#x6B3E;</div>
+        <div class="category-chip" :class="{ active: orderFilter === 2 }" @click="loadOrders(2)">&#x5F85;&#x63A5;&#x5355;</div>
+        <div class="category-chip" :class="{ active: orderFilter === 5 }" @click="loadOrders(5)">&#x5DF2;&#x5B8C;&#x6210;</div>
+      </div>
+      <div class="order-list" v-if="orders.length > 0">
+        <div class="order-card" v-for="order in orders" :key="order.id">
+          <div class="order-top">
+            <span class="order-number"># {{ order.number }}</span>
+            <span class="order-status" :class="'status-' + order.status">{{ statusText(order.status) }}</span>
+          </div>
+          <div class="order-dishes">{{ order.orderDishes || '订单详情加载中...' }}</div>
+          <div class="order-bottom">
+            <span class="order-amount">&#xA5;{{ order.amount }}</span>
+            <span class="order-time">{{ formatTime(order.orderTime) }}</span>
+          </div>
+          <div class="order-actions">
+            <button v-if="order.status === 1" @click="cancelOrder(order.id)">&#x53D6;&#x6D88;&#x8BA2;&#x5355;</button>
+            <button v-if="order.status === 5 || order.status === 6" @click="reorder(order.id)">&#x518D;&#x6765;&#x4E00;&#x5355;</button>
+            <button v-if="order.status === 3 || order.status === 4" @click="remindOrder(order.id)">&#x50AC;&#x5355;</button>
+          </div>
+        </div>
+      </div>
+      <div class="empty-state" v-else-if="!loading">
+        <div class="icon">&#128230;</div>
+        <p>&#x6682;&#x65E0;&#x8BA2;&#x5355;&#x8BB0;&#x5F55;</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Cart Button (only show on dishes tab) -->
+  <button class="cart-fab" v-show="activeTab === 'dishes' && cartCount > 0" @click="showCart = true">
+    &#128722;
+    <span class="fab-badge">{{ cartCount }}</span>
+  </button>
+
+  <!-- Cart Drawer -->
+  <div class="cart-overlay" v-if="showCart" @click="showCart = false"></div>
+  <div class="cart-drawer" v-if="showCart">
+    <div class="cart-header">
+      <h3>&#128722; &#x8D2D;&#x7269;&#x8F66; ({{ cartCount }})</h3>
+      <button class="cart-close" @click="showCart = false">&times;</button>
+    </div>
+    <div class="cart-items">
+      <div class="cart-item" v-for="item in cart" :key="item.id">
+        <div class="cart-item-name">{{ item.name }}<br><small style="color:#999;">{{ item.dishFlavor || '' }}</small></div>
+        <div class="cart-qty">
+          <button @click="cartSub(item)">-</button>
+          <span>{{ item.number }}</span>
+          <button @click="cartAdd(item)">+</button>
+        </div>
+        <div class="cart-item-price">&#xA5;{{ (item.amount * item.number).toFixed(2) }}</div>
+      </div>
+    </div>
+    <div class="cart-footer">
+      <div class="cart-total">
+        <span>&#x5408;&#x8BA1;</span>
+        <span class="amount">&#xA5;{{ cartTotal }}</span>
+      </div>
+      <div class="cart-actions">
+        <button class="btn-clear" @click="clearCart">&#x6E05;&#x7A7A;</button>
+        <button class="btn-checkout" @click="checkout" :disabled="submitting">{{ submitting ? '提交中...' : '去下单' }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+createApp({
+  setup() {
+    const API = 'http://localhost:8080';
+    const token = ref('');
+    const loginReady = ref(false);
+    const loading = ref(false);
+    const activeTab = ref('chat');
+    const toast = ref({ show: false, msg: '', type: 'success' });
+
+    function showToast(msg, type = 'success') {
+      toast.value = { show: true, msg, type };
+      setTimeout(() => toast.value.show = false, 2500);
+    }
+
+    function authHeaders() { return { 'authentication': token.value }; }
+    function jsonHeaders() { return { 'Content-Type': 'application/json', 'authentication': token.value }; }
+
+    // ===== Chat =====
+    const messages = ref([]);
+    const inputText = ref('');
+    const streaming = ref(false);
+    const chatBox = ref(null);
+    const sessionId = 'web-' + Date.now();
+    const userId = '1';
+    const quickQuestions = ['食堂几点开门？', '有什么好吃的菜？', '支持哪些支付方式？', '怎么退款？'];
+
+    // ===== Dishes =====
+    const categories = ref([]);
+    const dishes = ref([]);
+    const activeCat = ref(null);
+    const addingDish = ref(false);
+    const dishLimit = 15;
+    const displayCount = ref(dishLimit);
+    const displayDishes = computed(() => dishes.value.slice(0, displayCount.value));
+    const remainingCount = computed(() => Math.max(0, dishes.value.length - displayCount.value));
+    const dishGrid = ref(null);
+
+    // ===== Cart =====
+    const cart = ref([]);
+    const showCart = ref(false);
+    const submitting = ref(false);
+    const cartCount = computed(() => cart.value.reduce((s, i) => s + i.number, 0));
+    const cartTotal = computed(() => cart.value.reduce((s, i) => s + i.amount * i.number, 0).toFixed(2));
+
+    // ===== Orders =====
+    const orders = ref([]);
+    const orderFilter = ref(null);
+
+    // ===== Login =====
+    async function login() {
+      try {
+        const res = await fetch(API + '/user/user/login/phone', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: '13800138000' })
+        });
+        const json = await res.json();
+        if (json.code === 1 && json.data && json.data.token) { token.value = json.data.token; }
+        else { token.value = 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjEsImV4cCI6MTc4MjMxMTI4M30.3AetW9CuHZhxZC9T2VlKooeKM8dn8FqpZJ0qHxTP9mA'; }
+      } catch { token.value = 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjEsImV4cCI6MTc4MjMxMTI4M30.3AetW9CuHZhxZC9T2VlKooeKM8dn8FqpZJ0qHxTP9mA'; }
+      loginReady.value = true;
+      loadCart();
+    }
+
+    // ===== Categories & Dishes =====
+    async function loadCategories() {
+      try {
+        const res = await fetch(API + '/user/category/list?type=1', { headers: authHeaders() });
+        const json = await res.json();
+        if (json.code === 1) categories.value = json.data || [];
+      } catch {}
+    }
+
+    async function loadDishes(categoryId) {
+      activeCat.value = categoryId;
+      displayCount.value = dishLimit;
+      loading.value = true;
+      try {
+        let url = API + '/user/dish/list';
+        if (categoryId) url += '?categoryId=' + categoryId;
+        const res = await fetch(url, { headers: authHeaders() });
+        const json = await res.json();
+        if (json.code === 1) {
+          dishes.value = json.data || [];
+        } else {
+          dishes.value = [];
+        }
+      } catch (e) {
+        dishes.value = [];
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    function switchToDishes() {
+      activeTab.value = 'dishes';
+      if (dishes.value.length === 0 && loginReady.value) { loadCategories(); loadDishes(null); }
+    }
+
+    function loadMoreDishes() {
+      displayCount.value += 15;
+    }
+
+    // ===== Cart =====
+    async function addToCart(dish) {
+      addingDish.value = true;
+      try {
+        const res = await fetch(API + '/user/shoppingCart/add', {
+          method: 'POST', headers: jsonHeaders(),
+          body: JSON.stringify({ dishId: dish.id })
+        });
+        const json = await res.json();
+        if (json.code === 1) { showToast('已加入购物车'); loadCart(); }
+        else { showToast(json.msg || '加入失败', 'error'); }
+      } catch { showToast('网络错误', 'error'); }
+      finally { addingDish.value = false; }
+    }
+
+    async function loadCart() {
+      try {
+        const res = await fetch(API + '/user/shoppingCart/list', { headers: authHeaders() });
+        const json = await res.json();
+        if (json.code === 1) cart.value = json.data || [];
+      } catch {}
+    }
+
+    async function cartAdd(item) {
+      try {
+        await fetch(API + '/user/shoppingCart/add', {
+          method: 'POST', headers: jsonHeaders(),
+          body: JSON.stringify({ dishId: item.dishId, dishFlavor: item.dishFlavor })
+        });
+        loadCart();
+      } catch {}
+    }
+
+    async function cartSub(item) {
+      try {
+        await fetch(API + '/user/shoppingCart/sub', {
+          method: 'POST', headers: jsonHeaders(),
+          body: JSON.stringify({ dishId: item.dishId, dishFlavor: item.dishFlavor })
+        });
+        loadCart();
+      } catch {}
+    }
+
+    async function clearCart() {
+      try {
+        await fetch(API + '/user/shoppingCart/clean', { method: 'DELETE', headers: authHeaders() });
+        cart.value = [];
+        showToast('购物车已清空');
+      } catch {}
+    }
+
+    async function checkout() {
+      if (cart.value.length === 0) return;
+      submitting.value = true;
+      try {
+        // Get default address
+        let addressId = 0;
+        try {
+          const addrRes = await fetch(API + '/user/addressBook/list', { headers: authHeaders() });
+          const addrJson = await addrRes.json();
+          if (addrJson.code === 1 && addrJson.data && addrJson.data.length > 0) {
+            const def = addrJson.data.find(a => a.isDefault === 1) || addrJson.data[0];
+            addressId = def.id;
+          }
+        } catch {}
+
+        if (addressId === 0) {
+          showToast('请先在后端添加收货地址', 'error');
+          submitting.value = false;
+          return;
+        }
+
+        const res = await fetch(API + '/user/order/submit', {
+          method: 'POST', headers: jsonHeaders(),
+          body: JSON.stringify({
+            addressBookId: addressId,
+            payMethod: 1,
+            amount: parseFloat(cartTotal.value),
+            remark: '',
+            estimatedDeliveryTime: null,
+            deliveryStatus: 1,
+            tablewareNumber: 1,
+            tablewareStatus: 1,
+            packAmount: 0
+          })
+        });
+        const json = await res.json();
+        if (json.code === 1) {
+          showToast('下单成功！订单号: ' + json.data.orderNumber);
+          showCart.value = false;
+          loadCart();
+          activeTab.value = 'orders';
+          loadOrders(null);
+        } else {
+          showToast(json.msg || '下单失败', 'error');
+        }
+      } catch (e) { showToast('网络错误: ' + e.message, 'error'); }
+      finally { submitting.value = false; }
+    }
+
+    // ===== Orders =====
+    async function loadOrders(status) {
+      orderFilter.value = status;
+      loading.value = true;
+      try {
+        let url = API + '/user/order/historyOrders?page=1&pageSize=20';
+        if (status) url += '&status=' + status;
+        const res = await fetch(url, { headers: authHeaders() });
+        const json = await res.json();
+        if (json.code === 1 && json.data) orders.value = json.data.records || [];
+      } catch { orders.value = []; }
+      finally { loading.value = false; }
+    }
+
+    function switchToOrders() {
+      activeTab.value = 'orders';
+      if (orders.value.length === 0 && loginReady.value) loadOrders(null);
+    }
+
+    function statusText(s) {
+      return { 1: '待付款', 2: '待接单', 3: '已接单', 4: '派送中', 5: '已完成', 6: '已取消' }[s] || '未知';
+    }
+
+    function formatTime(t) {
+      if (!t) return '';
+      return t.replace('T', ' ').substring(0, 16);
+    }
+
+    async function cancelOrder(id) {
+      try {
+        const res = await fetch(API + '/user/order/cancel/' + id, { method: 'PUT', headers: authHeaders() });
+        const json = await res.json();
+        if (json.code === 1) { showToast('已取消'); loadOrders(orderFilter.value); }
+        else { showToast(json.msg || '取消失败', 'error'); }
+      } catch { showToast('网络错误', 'error'); }
+    }
+
+    async function reorder(id) {
+      try {
+        const res = await fetch(API + '/user/order/repetition/' + id, { method: 'POST', headers: authHeaders() });
+        const json = await res.json();
+        if (json.code === 1) { showToast('已加入购物车'); loadCart(); activeTab.value = 'dishes'; }
+        else { showToast(json.msg || '操作失败', 'error'); }
+      } catch { showToast('网络错误', 'error'); }
+    }
+
+    async function remindOrder(id) {
+      try {
+        const res = await fetch(API + '/user/order/reminder/' + id, { headers: authHeaders() });
+        const json = await res.json();
+        if (json.code === 1) showToast('已催单，请稍候');
+        else showToast(json.msg || '催单失败', 'error');
+      } catch { showToast('网络错误', 'error'); }
+    }
+
+    // ===== Chat =====
+    function scrollToBottom() {
+      nextTick(() => { if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight; });
+    }
+
+    async function sendMessage() {
+      const text = inputText.value.trim();
+      if (!text || streaming.value) return;
+      inputText.value = '';
+      messages.value.push({ role: 'user', content: text });
+      scrollToBottom();
+      streaming.value = true;
+      const assistantMsg = { role: 'assistant', content: '', streaming: true };
+      messages.value.push(assistantMsg);
+      try {
+        const res = await fetch(API + '/ai/chat/stream', {
+          method: 'POST', headers: jsonHeaders(),
+          body: JSON.stringify({ message: text, sessionId, userId })
+        });
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue;
+            const raw = line.slice(5).trim();
+            if (!raw || raw === '[DONE]') continue;
+            if (raw.startsWith('"')) {
+              try { assistantMsg.content += JSON.parse(raw); }
+              catch { assistantMsg.content += raw; }
+            } else {
+              assistantMsg.content += raw;
+            }
+            scrollToBottom();
+          }
+        }
+        if (buffer.startsWith('data:')) {
+          const raw = buffer.slice(5).trim();
+          if (raw && raw !== '[DONE]') {
+            if (raw.startsWith('"')) {
+              try { assistantMsg.content += JSON.parse(raw); }
+              catch { assistantMsg.content += raw; }
+            } else {
+              assistantMsg.content += raw;
+            }
+          }
+        }
+        if (!assistantMsg.content) assistantMsg.content = '（AI 未返回内容，请检查后端服务是否启动）';
+      } catch (e) { assistantMsg.content = '（网络错误: ' + e.message + '）'; }
+      finally { assistantMsg.streaming = false; streaming.value = false; scrollToBottom(); }
+    }
+
+    function sendQuick(q) { inputText.value = q; sendMessage(); }
+
+    onMounted(async () => {
+      await login();
+      loadCategories();
+      loadDishes(null);
+    });
+
+    return {
+      loginReady, loading, activeTab, toast,
+      messages, inputText, streaming, chatBox, quickQuestions,
+      categories, dishes, activeCat, addingDish, displayDishes, remainingCount, dishGrid,
+      cart, showCart, cartCount, cartTotal, submitting,
+      orders, orderFilter,
+      sendMessage, sendQuick, switchToDishes, loadDishes, loadMoreDishes,
+      addToCart, cartAdd, cartSub, clearCart, checkout,
+      switchToOrders, loadOrders, statusText, formatTime,
+      cancelOrder, reorder, remindOrder
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
