@@ -10,13 +10,13 @@ import java.util.*;
 
 /**
  * DashScope Rerank 服务 — 对候选文档做精排
- * 使用 gte-rerank 模型，输入 (query, documents[]) 返回按相关性排序的结果
+ * 使用 qwen3-rerank 模型，输入 (query, documents[]) 返回按相关性排序的结果
  */
 @Slf4j
 public class RerankService {
 
-    private static final String RERANK_URL = "https://dashscope.aliyuncs.com/api/v1/services/rerank";
-    private static final String DEFAULT_MODEL = "gte-rerank";
+    private static final String RERANK_URL = "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank";
+    private static final String DEFAULT_MODEL = "qwen3-rerank";
 
     private final String apiKey;
     private final String model;
