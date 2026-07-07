@@ -31,3 +31,14 @@ Thumbs.db
 *.tmp
 *.swp
 *~
+
+# AI 工具运行时缓存
+.reasonix/
+
+# JMeter 压测产物（HTML 报告体积大，CSV 为本地运行输出）
+bench/*_report/
+bench/**/*.csv
+bench4_*.csv
+
+# 本地启动脚本（含 API Key，勿提交）
+start-with-env.bat

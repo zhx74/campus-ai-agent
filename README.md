@@ -9,6 +9,7 @@
 - 持久层框架：MyBatis 3.0.3
 - 消息队列：RabbitMQ（延时队列 x-delayed-message）
 - 缓存：Redis
+- 向量数据库：Milvus（RAG 知识库 + 长期记忆）
 - 分布式锁：Redisson
 - 限流熔断：Resilience4j
 - 实时通信：WebSocket
@@ -180,11 +181,11 @@
 - **三层记忆系统**
   - 工作记忆：LLM context window 内的当前对话
   - 短期记忆：RedisChatMemory 滑动窗口（max 20条）+ LLM 摘要压缩，24h TTL
-  - 长期记忆：LongTermMemoryService 语义检索 + Redis 持久化 + MemoryExtractor 自动提取用户事实，启动时从 Redis 回灌 VectorStore
+  - 长期记忆：Milvus（`campus_memory` collection）语义检索 + Redis 持久化用户事实 + MemoryExtractor 自动提取，启动时从 Redis 回灌 Milvus
 - **RAG 知识检索**
-  - KnowledgeProvider SPI 扩展点，宿主系统播种业务知识
-  - SimpleVectorStore 向量存储 + DashScope Embedding
-  - KnowledgeBaseService.topK=3 语义检索
+  - 启动时从 `classpath:docs/*.txt` 切片播种到 Milvus（`campus_canteen` collection）
+  - MilvusVectorStore + DashScope Embedding（1536 维），向量粗排 topK=30 + Rerank 精排
+  - KnowledgeBaseService 返回 top 3 相关片段供 Agent 引用
 
 **项目特色**
 
